@@ -1,0 +1,9 @@
+# Finale geannoteerde dataset in YOLO formaat:
+# dataset_yolo/
+#   ├── data.yaml
+#   ├── images/
+#   │   ├── train/
+#   │   └── val/
+#   └── labels/
+#       ├── train/
+#       └── val/

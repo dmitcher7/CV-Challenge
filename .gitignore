@@ -1,0 +1,36 @@
+# Python & Jupyter
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints/
+.pytest_cache/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# YOLO & Machine Learning outputs
+runs/
+*.pt
+*.onnx
+*.engine
+wandb/
+
+# Data & Video (ignore large raw files, keep templates/samples)
+data/raw_video/*.mp4
+data/raw_video/*.avi
+data/raw_video/*.mov
+*.mp4
+*.avi
+*.mov
+*.zip
+*.tar.gz
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
