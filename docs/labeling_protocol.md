@@ -12,9 +12,9 @@ We gebruiken een **pre-trained YOLO model (COCO weights)** als backbone voor de 
 | Klasse ID | Naam | Beschrijving | Pre-trained vs Custom |
 | :---: | :---: | :--- | :--- |
 | **0** | `ball` | De wedstrijdbal (voetbal) | **Custom fine-tuned (onze dataset)** |
-| *(optioneel)* | `player` | Veldspelers | Pre-trained COCO `person` |
-| *(optioneel)* | `referee` | Scheidsrechter / grensrechters | Pre-trained COCO `person` |
-
+| *(optioneel)* | `player A` | Veldspelers | Pre-trained COCO `person` | *Donkerblauw -> PSG*
+| *(optioneel)* | `player B` | Veldspelers | Pre-trained COCO `person` | *Geel -> Inter Milan"
+| *(optioneel)* | `referee` | Scheidsrechter / grensrechters | Pre-trained COCO `person` | *Fluo*
 ---
 
 ## 2. Gouden Labelregels voor het Team
