@@ -14,6 +14,7 @@ We gebruiken een **pre-trained YOLO model (COCO weights)** als backbone voor de 
 | **0** | `ball` | De wedstrijdbal (voetbal) | **Custom fine-tuned (onze dataset)** |
 | *(optioneel)* | `player A` | Veldspelers | Pre-trained COCO `person` | *Donkerblauw -> PSG*
 | *(optioneel)* | `player B` | Veldspelers | Pre-trained COCO `person` | *Geel -> Inter Milan"
+| *(optioneel)* | `Keeper B` | Veldspelers | Pre-trained COCO `person` | *Oranje -> Inter Milan"
 | *(optioneel)* | `referee` | Scheidsrechter / grensrechters | Pre-trained COCO `person` | *Fluo*
 ---
 
