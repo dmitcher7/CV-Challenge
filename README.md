@@ -1,4 +1,5 @@
-# ⚽ Computer Vision Challenge: Sports Vision & Tactical Mapping
+# ⚽ Computer Vision Challenge:
+## Sports Vision & Tactical Mapping
 
 ## 👥 Team: Git Push and Pray
 * **Dmitrij Tchervonisjenko**
@@ -6,7 +7,7 @@
 * **Cisse Vandeweyer**
 * **Brent Van Gelder**
 
-**Opleiding:** Thomas More Mechelen – Jaar 3  
+**Opleiding:** Thomas More Geel – Jaar 3  
 **Vak:** Deep Learning & Computer Vision  
 **Sport:** Voetbal (Soccer)
 
