@@ -1,10 +1,8 @@
 """Track players in the project video using the trained YOLO model."""
 
 from pathlib import Path
-
 import cv2
 from ultralytics import YOLO
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -14,13 +12,14 @@ WEIGHTS_PATH = (
 )
 OUTPUT_DIR = SCRIPT_DIR / "runs"
 OUTPUT_NAME = "player_tracking"
-COLORS = {
-    "team_a": (1, 66, 106),
-    "team_b": (0, 204, 255),
-    "referee": (242, 184, 19),
-    "ball": (245, 245, 245),
-}
 
+# Updated colors in BGR format (Blue, Green, Red)
+COLORS = {
+    "team_a": (112, 65, 0),     # PSG Blue
+    "team_b": (171, 229, 243),  # Inter Milan Away Yellow
+    "referee": (235, 206, 135), # Light Blue
+    "ball": (0, 0, 255),        # Red
+}
 
 def main() -> None:
     if not WEIGHTS_PATH.is_file():
@@ -104,7 +103,7 @@ def draw_detections(frame, boxes, class_names) -> None:
         if track_ids is not None:
             label = f"{label} #{track_ids[index]}"
 
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
         (text_width, text_height), baseline = cv2.getTextSize(
             label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1
         )
@@ -116,13 +115,17 @@ def draw_detections(frame, boxes, class_names) -> None:
             color,
             -1,
         )
+        
+        # Adjust text color for readability depending on background brightness
+        text_color = (0, 0, 0) if category in ["team_b", "referee"] else (255, 255, 255)
+        
         cv2.putText(
             frame,
             label,
             (x1 + 3, label_y - baseline - 2),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.45,
-            (25, 25, 25) if category == "ball" else (255, 255, 255),
+            text_color,
             1,
             cv2.LINE_AA,
         )

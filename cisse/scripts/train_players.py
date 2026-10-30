@@ -19,16 +19,15 @@ def main() -> None:
 
     disable_label_cache()
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    model = YOLO("yolo26l.pt")
+    model = YOLO("yolo26n.pt")
     model.train(
         data=str(DATA_YAML),
         epochs=100,
-        imgsz=1280,
+        imgsz=640,
         project=str(MODEL_DIR),
         name=RUN_NAME,
         exist_ok=True,
         workers=0,
-        batch=8,
     )
 
     if not BEST_WEIGHTS.is_file():
