@@ -1,0 +1,2 @@
+run,model,imgsz,epochs,precision,recall,mAP50,mAP50-95
+smoke,yolo26s.pt,640,10,0.703,0.29,0.4655,0.1759
