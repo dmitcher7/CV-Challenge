@@ -1,0 +1,46 @@
+{
+    "top_left_corner": [
+        20,
+        20
+    ],
+    "top_right_corner": [
+        1030,
+        20
+    ],
+    "bottom_left_corner": [
+        20,
+        660
+    ],
+    "bottom_right_corner": [
+        1030,
+        660
+    ],
+    "midfield_top": [
+        525,
+        20
+    ],
+    "midfield_bottom": [
+        525,
+        660
+    ],
+    "center_spot": [
+        525,
+        340
+    ],
+    "left_penalty_box_top": [
+        178,
+        150
+    ],
+    "left_penalty_box_bottom": [
+        178,
+        529
+    ],
+    "right_penalty_box_top": [
+        872,
+        150
+    ],
+    "right_penalty_box_bottom": [
+        872,
+        529
+    ]
+}

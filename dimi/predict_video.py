@@ -26,7 +26,7 @@ def main():
     device = pick_device()
     output_dir = RUNS_DIR / f"{RUN_NAME}_predict"
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_video_path = output_dir / "annotated_match.avi"
+    out_video_path = output_dir / "annotated_match.mp4"
 
     print("=" * 60)
     print(f"[PREDICT] Video: {args.video}")
@@ -40,7 +40,7 @@ def main():
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(str(out_video_path), fourcc, fps, (w, h))
 
     frame_idx = 0
