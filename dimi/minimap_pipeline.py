@@ -32,12 +32,16 @@ CONFIG_PATH = DIMI_DIR / "homography_config.json"
 # ==============================================================================
 # OFFICIËLE TEAMKLEUREN & STIJL (BGR Formaat voor OpenCV)
 # ==============================================================================
+# Vaste coördinaten van de penaltystip op het camerabeeld (statische kalkmarkering op gras)
+PENALTY_SPOT_CAM = (1463.0, 374.0)
+PENALTY_SPOT_RADIUS = 50.0  # Zone rond de penaltystip die NOOIT als bal mag worden aanzien
+
 CLASS_CONFIG = {
     0: {
         "name": "Ball",
         "color_fill": (255, 255, 255),    # Zuiver wit
         "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.20,                     # Hoge precisie: elimineert afval/confetti/witte vlekken!
+        "conf": 0.14,                     # Optimale threshold voor de echte bal
         "radius": 9
     },
     1: {
@@ -263,8 +267,8 @@ def main():
         if not ret:
             break
 
-        # Inferenzieren op betrouwbare basis conf=0.15
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.15, device=device, verbose=False)[0]
+        # Inferenzieren op betrouwbare basis conf=0.12
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.12, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
         ball_candidates = []
@@ -287,6 +291,11 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
+                    # Filter NOOIT de penaltystip als bal aanzien!
+                    dist_to_penalty_spot = np.hypot(center[0] - PENALTY_SPOT_CAM[0], center[1] - PENALTY_SPOT_CAM[1])
+                    if dist_to_penalty_spot <= PENALTY_SPOT_RADIUS:
+                        continue  # Dit is de vaste penaltystip op het gras, sla over!
+
                     ball_candidates.append({
                         "box": box,
                         "conf": float(score),
