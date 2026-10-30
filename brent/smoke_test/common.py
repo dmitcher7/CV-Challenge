@@ -10,7 +10,7 @@ REPO_ROOT = SMOKE_DIR.parent.parent
 # Inputs (read-only, never modified)
 DATASET_DIR = REPO_ROOT / "data" / "dataset_yolo"
 ROBOFLOW_YAML = DATASET_DIR / "data.yaml"
-VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "match.mp4"
+VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "CV-video (1).mp4"
 
 # Outputs (all inside brent/smoke_test/)
 DATA_YAML = SMOKE_DIR / "data_smoke.yaml"

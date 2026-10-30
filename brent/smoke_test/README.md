@@ -28,8 +28,9 @@ so training and inference run on the **GPU**.
 | 4. Evaluate | `.\.venv\Scripts\python smoke_test\eval_smoke.py` | table + `runs/smoke_val/` + row in `experiments.csv` |
 | 5. Video | `.\.venv\Scripts\python smoke_test\predict_video.py` | `runs/smoke_predict/match.avi` (Windows writes `.avi`) |
 
-`train_smoke.py` accepts `--model --imgsz --epochs --batch` (defaults: CPU 640/10/4, GPU 1280/50/8;
-model `yolo26s.pt` when ultralytics ≥ 8.4, else `yolo11s.pt`). `eval_smoke.py` and `predict_video.py`
+`train_smoke.py` accepts `--model --imgsz --epochs --batch --patience --mosaic --close-mosaic`
+(GPU defaults: YOLO26m, 1600/100/2, patience 20, mosaic 0.2, close-mosaic 20; CPU uses 640/10/4).
+With ultralytics older than 8.4, the model falls back to `yolo11m.pt`. `eval_smoke.py` and `predict_video.py`
 read `imgsz` from `runs/smoke/args.yaml`, so they always use the training resolution.
 
 `common.py` holds the shared paths. It also turns off ultralytics' `labels.cache`, which would otherwise
