@@ -3,10 +3,10 @@ Advanced Sports Vision & Tactical Mapping Pipeline (Super Code Edition).
 Author: Dmitrij Tchervonisjenko (Team: Git Push and Pray)
 
 Features:
-  - Multi-Class Object Detection on NVIDIA RTX 4070 Laptop GPU
-  - Dual-Layer Penalty Spot Suppression (camera-space + invariant 2D pitch space)
-  - NEVER detects the penalty spot or pitch chalk markings as the ball!
-  - High-Recall Real Ball Tracking (midfield build-up, flank passes, penalty box)
+  - 10-Point Calibrated RANSAC Homography Transformation (Camera -> 2D FIFA Pitch)
+  - Dual-Layer Invariant Penalty Spot & Pitch Chalk Marking Suppression
+  - Player Cleat / White Shoe Filtering (aspect-ratio & foot-proximity checks)
+  - Real Ball Tracking (midfield build-up, flank passes, penalty box)
   - Official Broadcast Colors (PSG Royal Navy Blue vs. Inter Bright Yellow, Fluo Referee)
   - Anti-Flicker Temporal Memory & Segmented Comet Trail (no stray lines)
   - Real-Time Match Telemetry: Live Ball Speed (km/h) & Tactical Ball Possession
@@ -71,13 +71,16 @@ CLASS_CONFIG = {
 
 
 def load_homography_matrix():
-    """Laadt de geijkte Homografie matrix uit homography_config.json."""
+    """Laadt de geijkte 10-punts RANSAC Homografie matrix uit homography_config.json."""
     if CONFIG_PATH.exists():
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                H = np.array(data["homography_matrix"], dtype=np.float32)
-                print(f"[HOMOGRAFIE] Geijkte matrix H geladen ({len(data['camera_points'])} referentiepunten)")
+                cam_pts = np.array(data["camera_points"], dtype=np.float32)
+                pitch_pts = np.array(data["minimap_points"], dtype=np.float32)
+                # Bereken robuuste RANSAC matrix over alle geijkte punten
+                H, _ = cv2.findHomography(cam_pts, pitch_pts, cv2.RANSAC, 4.0)
+                print(f"[HOMOGRAFIE] 10-Punts RANSAC Matrix geladen ({len(cam_pts)} geijkte veldpunten)!")
                 return H
         except Exception as e:
             print("[WARN] Fout bij inlezen homografie config:", e)
@@ -104,15 +107,40 @@ def is_penalty_spot_or_marking(center_cam, H):
     cx, cy = center_cam
 
     # 1. Camera-ruimte (rechter 16m zone waar de penaltystip zichtbaar is)
-    if 1375 <= cx <= 1585 and 345 <= cy <= 435:
+    if 1370 <= cx <= 1590 and 340 <= cy <= 440:
         return True
 
     # 2. Invariante 2D Pitch-ruimte (werkt ongeacht camerazoom of panning)
     pt = np.array([[[cx, cy]]], dtype=np.float32)
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
-    if 785 <= X <= 875 and 190 <= Y <= 255:
+    if 780 <= X <= 960 and 190 <= Y <= 360:
         return True
+
+    return False
+
+
+def is_player_cleat(ball_box, player_boxes):
+    """
+    Voorkomt dat witte voetbalschoenen/cleats als bal worden aanzien.
+    1. Vormcontrole: een bal is rond (aspect ratio ~ 1.0). Een schoen is langwerpig.
+    2. Positiecontrole: als een klein wit object direct aan de onderkant van een speler zit.
+    """
+    bx1, by1, bx2, by2 = ball_box
+    bcx = (bx1 + bx2) / 2.0
+    bcy = (by1 + by2) / 2.0
+    bw = bx2 - bx1
+    bh = by2 - by1
+
+    aspect = bw / max(1.0, bh)
+    if aspect < 0.60 or aspect > 1.65:
+        return True  # Langwerpige schoen/cleat
+
+    for pbox in player_boxes:
+        px1, py1, px2, py2 = pbox
+        # Als het object direct bij de hiel/voet van de speler zit
+        if px1 <= bcx <= px2 and (py2 - 25) <= bcy <= (py2 + 10) and bw < 14 and bh < 14:
+            return True
 
     return False
 
@@ -263,7 +291,7 @@ def main():
 
     print("=" * 65)
     print(f"[SUPER-PIPELINE] Starten op {device} met imgsz={args.imgsz}")
-    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']} (Penalty Spot Zwartelijst Actief)")
+    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']} (Penalty Spot & Cleat Filters Actief)")
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
@@ -283,6 +311,7 @@ def main():
         results = model.predict(frame, imgsz=args.imgsz, conf=0.08, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
+        player_boxes = []
         ball_candidates = []
         cam_display = frame.copy()
 
@@ -291,6 +320,12 @@ def main():
             classes = results.boxes.cls.cpu().numpy().astype(int)
             scores = results.boxes.conf.cpu().numpy()
 
+            # 1. Eerst spelers verzamelen om schoenposities te kennen
+            for box, cid, score in zip(boxes, classes, scores):
+                if cid in [1, 2, 3, 4] and score >= CLASS_CONFIG[cid]["conf"]:
+                    player_boxes.append(box)
+
+            # 2. Nu alle objecten filteren en tekenen
             for box, cid, score in zip(boxes, classes, scores):
                 if cid not in CLASS_CONFIG:
                     continue
@@ -303,8 +338,12 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
-                    # NOOIT de penaltystip aanzien als bal!
+                    # Filter 1: NOOIT de penaltystip aanzien als bal!
                     if is_penalty_spot_or_marking(center, H):
+                        continue
+
+                    # Filter 2: NOOIT de schoenen/cleats van spelers aanzien als bal!
+                    if is_player_cleat(box, player_boxes):
                         continue
 
                     ball_candidates.append({
