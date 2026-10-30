@@ -37,7 +37,7 @@ CLASS_CONFIG = {
         "name": "Ball",
         "color_fill": (255, 255, 255),    # Zuiver wit
         "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.07,                     # Gevoelige threshold voor maximale bal-detectie!
+        "conf": 0.20,                     # Hoge precisie: elimineert afval/confetti/witte vlekken!
         "radius": 9
     },
     1: {
@@ -263,8 +263,8 @@ def main():
         if not ret:
             break
 
-        # Inferenzieren op lage basis conf=0.06 voor maximale recall
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.06, device=device, verbose=False)[0]
+        # Inferenzieren op betrouwbare basis conf=0.15
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.15, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
         ball_candidates = []
