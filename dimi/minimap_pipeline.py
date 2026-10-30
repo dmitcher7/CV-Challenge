@@ -71,16 +71,15 @@ CLASS_CONFIG = {
 
 
 def load_homography_matrix():
-    """Laadt de geijkte 10-punts RANSAC Homografie matrix uit homography_config.json."""
+    """Laadt de geijkte fysieke Homografie matrix uit homography_config.json."""
     if CONFIG_PATH.exists():
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 cam_pts = np.array(data["camera_points"], dtype=np.float32)
                 pitch_pts = np.array(data["minimap_points"], dtype=np.float32)
-                # Bereken robuuste RANSAC matrix over alle geijkte punten
-                H, _ = cv2.findHomography(cam_pts, pitch_pts, cv2.RANSAC, 4.0)
-                print(f"[HOMOGRAFIE] 10-Punts RANSAC Matrix geladen ({len(cam_pts)} geijkte veldpunten)!")
+                H, _ = cv2.findHomography(cam_pts, pitch_pts, cv2.RANSAC, 5.0)
+                print(f"[HOMOGRAFIE] Geijkte Fysieke Matrix geladen ({len(cam_pts)} referentiepunten)!")
                 return H
         except Exception as e:
             print("[WARN] Fout bij inlezen homografie config:", e)
@@ -94,9 +93,75 @@ def transform_points(points, H, pitch_w=1050, pitch_h=680):
         return np.array([], dtype=np.float32)
     pts = np.array(points, dtype=np.float32).reshape(-1, 1, 2)
     mapped = cv2.perspectiveTransform(pts, H).reshape(-1, 2)
-    mapped[:, 0] = np.clip(mapped[:, 0], 5, pitch_w - 5)
-    mapped[:, 1] = np.clip(mapped[:, 1], 5, pitch_h - 5)
+    mapped[:, 0] = np.clip(mapped[:, 0], 18, 1032)
+    mapped[:, 1] = np.clip(mapped[:, 1], 18, 662)
     return mapped
+
+
+class BallSortTracker:
+    """
+    SORT (Simple Online and Realtime Tracking) met Time Series Prediction
+    en Moving Average Smoothing voor de voetbal.
+    """
+    def __init__(self, alpha=0.75, max_missing=6):
+        self.state = None  # [x, y, vx, vy]
+        self.P = np.eye(4, dtype=np.float32) * 40.0
+        # Time Series constant-velocity state transition matrix F met wrijvingsdemping
+        self.F = np.array([
+            [1, 0, 1, 0],
+            [0, 1, 0, 1],
+            [0, 0, 0.94, 0],
+            [0, 0, 0, 0.94]
+        ], dtype=np.float32)
+        self.Q = np.diag([2.0, 2.0, 8.0, 8.0]).astype(np.float32)
+        self.H_k = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0]
+        ], dtype=np.float32)
+        self.R = np.diag([3.0, 3.0]).astype(np.float32)
+        self.ema_pos = None
+        self.alpha = alpha  # Moving average smoothing factor
+        self.missing_frames = 0
+        self.max_missing = max_missing
+
+    def predict(self):
+        """Voert time series voorspelling uit naar het volgende frame."""
+        if self.state is None:
+            return None
+        self.state = self.F @ self.state
+        self.P = self.F @ self.P @ self.F.T + self.Q
+        self.missing_frames += 1
+        return self.state[:2]
+
+    def update(self, z):
+        """Kalman update met meting z en Moving Average smoothing."""
+        z = np.array(z, dtype=np.float32)
+        if self.state is None:
+            self.state = np.array([z[0], z[1], 0.0, 0.0], dtype=np.float32)
+            self.P = np.eye(4, dtype=np.float32) * 20.0
+            self.ema_pos = z.copy()
+            self.missing_frames = 0
+            return self.ema_pos
+
+        y = z - (self.H_k @ self.state)
+        S = self.H_k @ self.P @ self.H_k.T + self.R
+        K = self.P @ self.H_k.T @ np.linalg.inv(S)
+        self.state = self.state + K @ y
+        self.P = (np.eye(4) - K @ self.H_k) @ self.P
+        self.missing_frames = 0
+
+        # Moving average smoothing
+        raw_pos = self.state[:2]
+        self.ema_pos = self.alpha * raw_pos + (1.0 - self.alpha) * self.ema_pos
+        return self.ema_pos
+
+    def get_pos(self):
+        """Geeft de afgevlakte positie of tijdreeks-voorspelling terug."""
+        if self.missing_frames > self.max_missing:
+            self.state = None
+            self.ema_pos = None
+            return None
+        return self.ema_pos if self.missing_frames == 0 else self.state[:2]
 
 
 def is_penalty_spot_or_marking(center_cam, H):
@@ -281,12 +346,9 @@ def main():
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
+    tracker = BallSortTracker(alpha=0.75, max_missing=6)
     ball_trail = []
-    last_cam_ball = None
-    last_cam_vel = np.array([0.0, 0.0], dtype=np.float32)
     last_known_2d_ball = None
-    frames_since_ball = 999
-    max_missing_frames = 8
     total_ball_frames = 0
     all_player_points = []
     frame_idx = 0
@@ -348,70 +410,51 @@ def main():
                     detected_players[cid].append(feet)
 
         # -------------------------------------------------------------
-        # Kinematic Ball Tracker (Volg de ECHTE bal zonder sprongen!)
+        # SORT Tracking + Time Series Prediction + Moving Average
         # -------------------------------------------------------------
-        chosen_ball = None
+        pred_pos = tracker.predict()
+        chosen_measurement = None
+        chosen_conf = None
 
-        if last_cam_ball is not None and frames_since_ball <= max_missing_frames:
-            # Kinematische gating op basis van voorspelde snelheid
-            pred_pos = last_cam_ball + (last_cam_vel if frames_since_ball <= 3 else np.array([0.0, 0.0], dtype=np.float32))
+        if pred_pos is not None and tracker.missing_frames <= tracker.max_missing:
+            # Gating op basis van Time Series Prediction
             gated = []
             for cand in ball_candidates:
-                dist = np.linalg.norm(cand['center'] - pred_pos)
-                max_allowed_dist = 65.0 + frames_since_ball * 15.0
-                if dist <= max_allowed_dist:
-                    cost = dist - cand['conf'] * 20.0
+                d = np.linalg.norm(cand['center'] - pred_pos)
+                max_d = 70.0 + tracker.missing_frames * 15.0
+                if d <= max_d:
+                    cost = d - cand['conf'] * 25.0
                     gated.append((cost, cand))
             if gated:
                 gated.sort(key=lambda x: x[0])
-                chosen_ball = gated[0][1]
+                chosen_measurement = gated[0][1]['center']
+                chosen_conf = gated[0][1]['conf']
         elif ball_candidates:
-            # Re-acquisitie: mag NIET op een voet initialiseren tenzij hoge conf (>= 0.40)
-            reacq_cands = []
+            # Re-acquisitie (SORT init): mag NIET op een voet initialiseren tenzij hoge conf (>= 0.40)
+            reacq = []
             for cand in ball_candidates:
                 if is_foot_region(cand['center'], player_boxes):
                     if cand['conf'] >= 0.40:
-                        reacq_cands.append(cand)
+                        reacq.append(cand)
                 else:
                     if cand['conf'] >= 0.16:
-                        reacq_cands.append(cand)
-            if reacq_cands:
-                reacq_cands.sort(key=lambda x: -x['conf'])
-                chosen_ball = reacq_cands[0]
+                        reacq.append(cand)
+            if reacq:
+                reacq.sort(key=lambda x: -x['conf'])
+                chosen_measurement = reacq[0]['center']
+                chosen_conf = reacq[0]['conf']
 
-        current_ball_cam = None
-        current_ball_score = None
+        if chosen_measurement is not None:
+            tracker.update(chosen_measurement)
+
+        current_ball_cam = tracker.get_pos()
         current_ball_2d = None
 
-        if chosen_ball is not None:
-            curr_pos = chosen_ball['center']
-            if last_cam_ball is not None:
-                new_vel = (curr_pos - last_cam_ball) / max(1, frames_since_ball + 1)
-                speed = np.linalg.norm(new_vel)
-                if speed > 60:
-                    new_vel = new_vel * (60.0 / speed)
-                last_cam_vel = 0.60 * last_cam_vel + 0.40 * new_vel
-            last_cam_ball = curr_pos
-            frames_since_ball = 0
-            total_ball_frames += 1
-            current_ball_cam = curr_pos
-            current_ball_score = chosen_ball['conf']
-            draw_camera_ball_highlight(cam_display, current_ball_cam, current_ball_score)
-        else:
-            frames_since_ball += 1
-            if frames_since_ball <= max_missing_frames and last_cam_ball is not None:
-                # Kinematische inertie: overbrugt occlusie en bewegingsonscherpte zonder geknipper
-                if frames_since_ball <= 3:
-                    last_cam_vel = last_cam_vel * 0.75
-                    last_cam_ball = last_cam_ball + last_cam_vel
-                current_ball_cam = last_cam_ball
-                total_ball_frames += 1
-                draw_camera_ball_highlight(cam_display, current_ball_cam, score=None)
-            else:
-                last_cam_ball = None
-                last_cam_vel = np.array([0.0, 0.0], dtype=np.float32)
+        prev_ball_2d = last_known_2d_ball
 
         if current_ball_cam is not None:
+            total_ball_frames += 1
+            draw_camera_ball_highlight(cam_display, current_ball_cam, chosen_conf)
             mapped = transform_points([current_ball_cam], H, pitch_img.shape[1], pitch_img.shape[0])
             if len(mapped) > 0:
                 p2d = (int(mapped[0][0]), int(mapped[0][1]))
@@ -432,7 +475,7 @@ def main():
         mapped_a = transform_points(detected_players[1], H, pitch_img.shape[1], pitch_img.shape[0])
         mapped_b = transform_points(detected_players[2], H, pitch_img.shape[1], pitch_img.shape[0])
 
-        speed_kmh, possession = compute_match_telemetry(current_ball_2d, last_known_2d_ball, mapped_a, mapped_b, fps)
+        speed_kmh, possession = compute_match_telemetry(current_ball_2d, prev_ball_2d, mapped_a, mapped_b, fps)
 
         for pts_2d in [mapped_a, mapped_b]:
             for p in pts_2d:
