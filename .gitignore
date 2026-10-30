@@ -16,6 +16,7 @@ runs/
 *.pt
 *.onnx
 *.engine
+*.cache
 wandb/
 
 # Data & Video (ignore large raw files, keep templates/samples)

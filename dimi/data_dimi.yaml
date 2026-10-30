@@ -1,0 +1,13 @@
+path: C:\Users\dimit\Documents\01 - Thomas More\Thomas More Jaar 3\01 - Semester 1\Deep
+  Learning\Project 2 - CV\CV-Challenge\dimi
+train: C:\Users\dimit\Documents\01 - Thomas More\Thomas More Jaar 3\01 - Semester
+  1\Deep Learning\Project 2 - CV\CV-Challenge\dimi\train.txt
+val: C:\Users\dimit\Documents\01 - Thomas More\Thomas More Jaar 3\01 - Semester 1\Deep
+  Learning\Project 2 - CV\CV-Challenge\dimi\val.txt
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee
