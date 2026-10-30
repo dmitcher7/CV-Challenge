@@ -1,0 +1,4 @@
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\data\dataset_yolo\train\images\frame_0525_idx_00525_jpg.rf.3b49b3f3c5d8ab8e4d9529052523056b.jpg
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\data\dataset_yolo\train\images\frame_0529_idx_00529_jpg.rf.d8ae2dfe0a9a1286004700285975ff03.jpg
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\data\dataset_yolo\train\images\frame_0533_idx_00533_jpg.rf.b45d896262401d30aafbd6bba972b7d1.jpg
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\data\dataset_yolo\train\images\frame_0537_idx_00537_jpg.rf.f856d8fecfd7aa84241faf159ad1d985.jpg
