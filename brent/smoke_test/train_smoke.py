@@ -2,7 +2,7 @@
 
 Defaults depend on the hardware:
     CPU -> imgsz=640,  epochs=10, batch=4
-    GPU -> imgsz=1280, epochs=50, batch=8
+    GPU -> imgsz=1600, epochs=100, batch=2
 Run make_split.py first (it creates data_smoke.yaml).
 """
 
@@ -17,7 +17,7 @@ from common import DATA_YAML, RUNS_DIR, RUN_NAME, SMOKE_DIR, pick_device, disabl
 def default_model():
     """YOLO26 exists from ultralytics 8.4 on; otherwise fall back to YOLO11."""
     major, minor = (int(x) for x in ultralytics.__version__.split(".")[:2])
-    return "yolo26s.pt" if (major, minor) >= (8, 4) else "yolo11s.pt"
+    return "yolo26m.pt" if (major, minor) >= (8, 4) else "yolo11m.pt"
 
 
 device = pick_device()
@@ -25,12 +25,19 @@ on_gpu = device != "cpu"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default=default_model())
-parser.add_argument("--imgsz", type=int, default=1280 if on_gpu else 640)
-parser.add_argument("--epochs", type=int, default=50 if on_gpu else 10)
-parser.add_argument("--batch", type=int, default=8 if on_gpu else 4)
+parser.add_argument("--imgsz", type=int, default=1600 if on_gpu else 640)
+parser.add_argument("--epochs", type=int, default=100 if on_gpu else 10)
+parser.add_argument("--batch", type=int, default=2 if on_gpu else 4)
+parser.add_argument("--patience", type=int, default=20)
+parser.add_argument("--mosaic", type=float, default=0.2)
+parser.add_argument("--close-mosaic", type=int, default=20)
 args = parser.parse_args()
 
-print(f"device={device} model={args.model} imgsz={args.imgsz} epochs={args.epochs} batch={args.batch}")
+print(
+    f"device={device} model={args.model} imgsz={args.imgsz} "
+    f"epochs={args.epochs} batch={args.batch} patience={args.patience} "
+    f"mosaic={args.mosaic} close_mosaic={args.close_mosaic}"
+)
 
 disable_label_cache()  # do not write labels.cache into data/
 
@@ -41,6 +48,9 @@ model.train(
     imgsz=args.imgsz,
     epochs=args.epochs,
     batch=args.batch,
+    patience=args.patience,
+    mosaic=args.mosaic,
+    close_mosaic=args.close_mosaic,
     device=device,
     project=str(RUNS_DIR),
     name=RUN_NAME,
