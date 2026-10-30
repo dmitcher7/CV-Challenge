@@ -76,10 +76,13 @@ def load_homography_matrix():
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                cam_pts = np.array(data["camera_points"], dtype=np.float32)
-                pitch_pts = np.array(data["minimap_points"], dtype=np.float32)
-                H, _ = cv2.findHomography(cam_pts, pitch_pts, cv2.RANSAC, 5.0)
-                print(f"[HOMOGRAFIE] Geijkte Fysieke Matrix geladen ({len(cam_pts)} referentiepunten)!")
+                if "homography_matrix" in data:
+                    H = np.array(data["homography_matrix"], dtype=np.float32)
+                else:
+                    cam_pts = np.array(data["camera_points"], dtype=np.float32)
+                    pitch_pts = np.array(data["minimap_points"], dtype=np.float32)
+                    H, _ = cv2.findHomography(cam_pts, pitch_pts, 0)
+                print(f"[HOMOGRAFIE] 16-Puntige Geijkte Witte Lijnen Matrix geladen ({len(data['camera_points'])} referentiepunten)!")
                 return H
         except Exception as e:
             print("[WARN] Fout bij inlezen homografie config:", e)
@@ -166,20 +169,24 @@ class BallSortTracker:
 
 def is_penalty_spot_or_marking(center_cam, H):
     """
-    Sluit de penaltystip 100% uit.
+    Sluit de penaltystip en veldkrijtmarkeringen 100% uit.
     Controleert zowel in de camerazone als in de gekalibreerde 2D pitchruimte.
     """
     cx, cy = center_cam
 
-    # 1. Camera coordinaten (rechts van het 16m-gebied)
-    if 1350 <= cx <= 1620 and 345 <= cy <= 435:
+    # 1. Camera coordinaten van de rechter strafschopstip (1564, 400)
+    if 1520 <= cx <= 1610 and 370 <= cy <= 425:
         return True
 
-    # 2. Invariante 2D Pitch-ruimte (onafhankelijk van panning of schaal)
+    # 2. Invariante 2D Pitch-ruimte: Rechter strafschopstip ligt exact op (925, 339)
     pt = np.array([[[cx, cy]]], dtype=np.float32)
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
-    if 870 <= X <= 990 and 200 <= Y <= 290:
+    if 895 <= X <= 955 and 310 <= Y <= 370:
+        return True
+
+    # 3. Middenstip op (525, 339)
+    if 505 <= X <= 545 and 320 <= Y <= 360:
         return True
 
     return False
