@@ -90,6 +90,137 @@ def load_homography_matrix():
     raise FileNotFoundError("homography_config.json ontbreekt. Run eerst calibrate_homography.py!")
 
 
+class CameraTracker:
+    """
+    Volgt de camerabeweging (pan, tilt, zoom) tussen opeenvolgende videoframes
+    via sparse Optical Flow (Lucas-Kanade) en RANSAC Affine transformatie.
+    """
+    def __init__(self, max_corners=500):
+        self.prev_gray = None
+        self.prev_pts = None
+        self.H_cumulative = np.eye(3, dtype=np.float32)
+        self.feature_params = dict(maxCorners=max_corners, qualityLevel=0.01, minDistance=15, blockSize=7)
+        self.lk_params = dict(winSize=(21, 21), maxLevel=3, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
+        self.frame_count = 0
+
+    def update(self, frame_bgr):
+        curr_gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        self.frame_count += 1
+        if self.prev_gray is None or self.prev_pts is None or len(self.prev_pts) < 50:
+            self.prev_gray = curr_gray
+            self.prev_pts = cv2.goodFeaturesToTrack(curr_gray, mask=None, **self.feature_params)
+            return self.H_cumulative
+
+        curr_pts, status, err = cv2.calcOpticalFlowPyrLK(self.prev_gray, curr_gray, self.prev_pts, None, **self.lk_params)
+        valid_prev = self.prev_pts[status == 1]
+        valid_curr = curr_pts[status == 1]
+
+        if len(valid_prev) >= 15:
+            M, inliers = cv2.estimateAffinePartial2D(valid_curr, valid_prev, method=cv2.RANSAC, ransacReprojThreshold=3.0)
+            if M is not None:
+                scale = np.hypot(M[0, 0], M[0, 1])
+                if 0.85 <= scale <= 1.15:
+                    M_homo = np.eye(3, dtype=np.float32)
+                    M_homo[:2, :] = M
+                    self.H_cumulative = self.H_cumulative @ M_homo
+
+        if len(valid_curr) < 200 or self.frame_count % 15 == 0:
+            self.prev_pts = cv2.goodFeaturesToTrack(curr_gray, mask=None, **self.feature_params)
+        else:
+            self.prev_pts = valid_curr.reshape(-1, 1, 2)
+            
+        self.prev_gray = curr_gray
+        return self.H_cumulative
+
+
+class TeamPlayerTracker:
+    """
+    Volgt spelers op het 2D veld met spatiale associatie,
+    Exponential Moving Average (EMA) smoothing tegen jitter
+    en multi-frame persistentie tegen knipperen.
+    """
+    def __init__(self, max_age=3, match_dist=35.0, ema_alpha=0.65):
+        self.tracks = {}
+        self.next_id = 1
+        self.max_age = max_age
+        self.match_dist = match_dist
+        self.alpha = ema_alpha
+
+    def update(self, detections):
+        for tid in list(self.tracks.keys()):
+            self.tracks[tid]['age'] += 1
+            if self.tracks[tid]['age'] > self.max_age:
+                del self.tracks[tid]
+
+        matched_tracks = set()
+
+        # 1. Singleton behandeling voor de keeper (er kan altijd maximaal 1 keeper zijn)
+        keeper_dets = [d for d in detections if d[0] == 3]
+        if keeper_dets:
+            _, k_meas, k_conf = keeper_dets[0]
+            k_tid = None
+            for tid, t in self.tracks.items():
+                if t['team'] == 3:
+                    k_tid = tid
+                    break
+            if k_tid is not None:
+                self.tracks[k_tid]['pos'] = self.alpha * k_meas + (1.0 - self.alpha) * self.tracks[k_tid]['pos']
+                self.tracks[k_tid]['age'] = 0
+                self.tracks[k_tid]['conf'] = k_conf
+                matched_tracks.add(k_tid)
+            else:
+                new_id = self.next_id
+                self.next_id += 1
+                self.tracks[new_id] = {'pos': k_meas.copy(), 'team': 3, 'age': 0, 'conf': k_conf}
+                matched_tracks.add(new_id)
+
+        # 2. Outfield spelers en scheidsrechters (cid in [1, 2, 4])
+        for cid in [1, 2, 4]:
+            team_dets = [d for d in detections if d[0] == cid]
+            team_tracks = [(tid, t) for tid, t in self.tracks.items() if t['team'] == cid and tid not in matched_tracks]
+
+            for c, p_meas, conf in team_dets:
+                best_tid = None
+                best_dist = self.match_dist
+                for tid, t in team_tracks:
+                    if tid in matched_tracks:
+                        continue
+                    dist = np.hypot(p_meas[0] - t['pos'][0], p_meas[1] - t['pos'][1])
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_tid = tid
+                if best_tid is not None:
+                    self.tracks[best_tid]['pos'] = self.alpha * p_meas + (1.0 - self.alpha) * self.tracks[best_tid]['pos']
+                    self.tracks[best_tid]['age'] = 0
+                    self.tracks[best_tid]['conf'] = conf
+                    matched_tracks.add(best_tid)
+                else:
+                    new_id = self.next_id
+                    self.next_id += 1
+                    self.tracks[new_id] = {'pos': p_meas.copy(), 'team': c, 'age': 0, 'conf': conf}
+
+        # 3. Deduplicatie: verwijder tracks van hetzelfde team die binnen 18px van elkaar zijn gekomen
+        active_tids = list(self.tracks.keys())
+        to_remove = set()
+        for i in range(len(active_tids)):
+            t1 = active_tids[i]
+            if t1 in to_remove or t1 not in self.tracks: continue
+            for j in range(i + 1, len(active_tids)):
+                t2 = active_tids[j]
+                if t2 in to_remove or t2 not in self.tracks: continue
+                if self.tracks[t1]['team'] == self.tracks[t2]['team']:
+                    if np.hypot(self.tracks[t1]['pos'][0] - self.tracks[t2]['pos'][0], self.tracks[t1]['pos'][1] - self.tracks[t2]['pos'][1]) < 18.0:
+                        if self.tracks[t1]['age'] > self.tracks[t2]['age']:
+                            to_remove.add(t1)
+                        else:
+                            to_remove.add(t2)
+        for tid in to_remove:
+            if tid in self.tracks:
+                del self.tracks[tid]
+
+        return self.tracks
+
+
 def transform_points(points, H, pitch_w=1050, pitch_h=680):
     """Projecteert cameracoordinaten (x, y) naar het 2D veld (X, Y)."""
     if len(points) == 0:
@@ -170,23 +301,21 @@ class BallSortTracker:
 def is_penalty_spot_or_marking(center_cam, H):
     """
     Sluit de penaltystip en veldkrijtmarkeringen 100% uit.
-    Controleert zowel in de camerazone als in de gekalibreerde 2D pitchruimte.
+    Controleert in de fysieke invariante 2D pitchruimte (onafhankelijk van panning of zoom).
     """
     cx, cy = center_cam
 
-    # 1. Camera coordinaten van de rechter strafschopstip (1564, 400)
-    if 1520 <= cx <= 1610 and 370 <= cy <= 425:
-        return True
-
-    # 2. Invariante 2D Pitch-ruimte: Rechter strafschopstip ligt exact op (925, 339)
+    # Invariante 2D Pitch-ruimte transformatie
     pt = np.array([[[cx, cy]]], dtype=np.float32)
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
-    if 895 <= X <= 955 and 310 <= Y <= 370:
+
+    # 1. Rechter strafschopstip (exact X=925, Y=339, radius 18px)
+    if 907 <= X <= 943 and 322 <= Y <= 356:
         return True
 
-    # 3. Middenstip op (525, 339)
-    if 505 <= X <= 545 and 320 <= Y <= 360:
+    # 2. Middenstip (exact X=525, Y=339, radius 18px)
+    if 507 <= X <= 543 and 322 <= Y <= 356:
         return True
 
     return False
@@ -229,43 +358,58 @@ def draw_camera_ball_highlight(img, center, score=None):
     cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
 
 
-def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail):
-    """Tekent spelers en bal op de 2D minimap."""
-    radar = pitch_base.copy()
-    pitch_h, pitch_w = radar.shape[:2]
+def draw_tactical_player(radar, pt, cid):
+    """Tekent een professionele speler-marker met zachte slagschaduw en officiële teamkleuren."""
+    x, y = int(round(pt[0])), int(round(pt[1]))
+    # 1. Zachte antialiased schaduw onder de marker
+    cv2.circle(radar, (x + 2, y + 2), 12, (15, 25, 15), -1, cv2.LINE_AA)
 
-    # 1. Teken balspoor (alleen nabije opeenvolgende punten om uitschieters te weren)
+    if cid == 1:  # PSG (Team A): Royal Navy Blue + Witte Ring + Rode Kern
+        cv2.circle(radar, (x, y), 11, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 9, (160, 45, 18), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 3, (0, 0, 230), -1, cv2.LINE_AA)
+    elif cid == 2:  # Inter (Team B): Zonnegeel + Zwarte Ring + Donkerblauwe Kern
+        cv2.circle(radar, (x, y), 11, (15, 15, 15), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 9, (0, 220, 255), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 3, (160, 45, 18), -1, cv2.LINE_AA)
+    elif cid == 3:  # Goalkeeper: Fluo Oranje + Witte Ring + Witte Kern
+        cv2.circle(radar, (x, y), 13, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 11, (0, 130, 255), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 4, (255, 255, 255), -1, cv2.LINE_AA)
+    elif cid == 4:  # Referee: Fluo Limoengroen + Zwarte Ring + Donkere Kern
+        cv2.circle(radar, (x, y), 10, (15, 15, 15), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 8, (40, 255, 120), -1, cv2.LINE_AA)
+        cv2.circle(radar, (x, y), 2, (15, 15, 15), -1, cv2.LINE_AA)
+
+
+def draw_tactical_radar(pitch_base, active_tracks, ball_pos_2d, ball_trail):
+    """Tekent alle getrackte spelers en de bal op de 2D minimap."""
+    radar = pitch_base.copy()
+
+    # 1. Teken balspoor met fading snelheidsverloop
     if len(ball_trail) > 1:
         for i in range(1, len(ball_trail)):
             p_prev = ball_trail[i - 1]
             p_curr = ball_trail[i]
             dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
-            if dist <= 60:
+            if dist <= 75:
                 progress = i / len(ball_trail)
                 thickness = int(1 + progress * 3)
                 color = (0, int(150 + 105 * progress), 255)
                 cv2.line(radar, p_prev, p_curr, color, thickness, cv2.LINE_AA)
 
-    # 2. Teken spelers per categorie
-    for cid in [1, 2, 3, 4]:
-        pts = detected_players.get(cid, [])
-        if not pts:
-            continue
-        mapped = transform_points(pts, H, pitch_w, pitch_h)
-        cfg = CLASS_CONFIG[cid]
+    # 2. Teken getrackte spelers (scheidsrechters eerst, dan veldspelers, dan keeper)
+    for draw_cid in [4, 1, 2, 3]:
+        for tid, trk in active_tracks.items():
+            if trk["team"] == draw_cid:
+                draw_tactical_player(radar, trk["pos"], draw_cid)
 
-        for pt in mapped:
-            px, py = int(pt[0]), int(pt[1])
-            cv2.circle(radar, (px + 2, py + 2), cfg["radius"], (15, 15, 15), -1, cv2.LINE_AA)
-            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_fill"], -1, cv2.LINE_AA)
-            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_border"], 2, cv2.LINE_AA)
-
-    # 3. Teken de bal (altijd prominent)
+    # 3. Teken de bal (prominent en oplichtend)
     if ball_pos_2d is not None:
-        bx, by = int(ball_pos_2d[0]), int(ball_pos_2d[1])
+        bx, by = int(round(ball_pos_2d[0])), int(round(ball_pos_2d[1]))
         cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
         cv2.circle(radar, (bx, by), 9, (255, 255, 255), -1, cv2.LINE_AA)
-        cv2.circle(radar, (bx, by), 9, (0, 0, 255), 1, cv2.LINE_AA)
+        cv2.circle(radar, (bx, by), 4, (0, 0, 255), -1, cv2.LINE_AA)
 
     return radar
 
@@ -354,6 +498,8 @@ def main():
     print("=" * 65)
 
     tracker = BallSortTracker(alpha=0.75, max_missing=6)
+    camera_tracker = CameraTracker(max_corners=500)
+    player_tracker = TeamPlayerTracker(max_age=6, match_dist=38.0, ema_alpha=0.65)
     ball_trail = []
     last_known_2d_ball = None
     total_ball_frames = 0
@@ -365,9 +511,13 @@ def main():
         if not ret:
             break
 
+        # 1. Dynamische Cameratracking (compenseert TV-pan, tilt en zoom)
+        H_t2_0 = camera_tracker.update(frame)
+        Ht = H @ H_t2_0
+
         results = model.predict(frame, imgsz=args.imgsz, conf=0.07, device=device, verbose=False)[0]
 
-        detected_players = {1: [], 2: [], 3: [], 4: []}
+        raw_players = {1: [], 2: [], 3: [], 4: []}
         player_boxes = []
         ball_candidates = []
         cam_display = frame.copy()
@@ -377,12 +527,11 @@ def main():
             classes = results.boxes.cls.cpu().numpy().astype(int)
             scores = results.boxes.conf.cpu().numpy()
 
-            # 1. Eerst spelers verzamelen om schoenposities te kennen
+            # Eerst spelers verzamelen om schoenposities te kennen
             for box, cid, score in zip(boxes, classes, scores):
                 if cid in [1, 2, 3, 4] and score >= 0.28:
                     player_boxes.append(box)
 
-            # 2. Nu alle objecten filteren en tekenen
             for box, cid, score in zip(boxes, classes, scores):
                 if cid not in CLASS_CONFIG:
                     continue
@@ -395,14 +544,14 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
-                    # Filter 1: Harde eliminatie van de penaltystip (camera + 2D pitch)
-                    if is_penalty_spot_or_marking(center, H):
+                    # Filter 1: Harde eliminatie van de penaltystip (invariante 2D pitchruimte via Ht)
+                    if is_penalty_spot_or_marking(center, Ht):
                         continue
 
                     bw = x2 - x1
                     bh = y2 - y1
                     aspect = bw / max(1.0, bh)
-                    # Filter 2: Sferische vormcontrole (schoenen en krijtstrepen zijn langwerpig)
+                    # Filter 2: Sferische vormcontrole
                     if aspect < 0.60 or aspect > 1.65:
                         continue
 
@@ -412,19 +561,47 @@ def main():
                         "center": np.array(center, dtype=np.float32)
                     })
                 else:
-                    draw_styled_camera_box(cam_display, box, cid, score)
                     feet = [(x1 + x2) / 2.0, y2]
-                    detected_players[cid].append(feet)
+                    # Veld-ROI: negeer TV-scorebord en bovenste tribunes (feet < 210)
+                    if feet[1] >= 210:
+                        pt_cam = np.array([[feet]], dtype=np.float32)
+                        p2d = cv2.perspectiveTransform(pt_cam, Ht)[0][0]
+                        # Moet zich binnen de wettige veldgrens bevinden
+                        if 15 <= p2d[0] <= 1035 and 15 <= p2d[1] <= 665:
+                            raw_players[cid].append((float(score), p2d, box))
 
-        # -------------------------------------------------------------
-        # SORT Tracking + Time Series Prediction + Moving Average
-        # -------------------------------------------------------------
+        # 2. Spatiale NMS Deduplicatie (geen dubbele stippen op dezelfde speler)
+        deduped_players = []
+        # Keeper: maximaal 1 keeper (hoogste conf dichtst bij eigen doel [1030, 339])
+        if raw_players[3]:
+            raw_players[3].sort(key=lambda x: (-x[0], np.hypot(x[1][0] - 1030.0, x[1][1] - 339.0)))
+            k_score, k_p2d, k_box = raw_players[3][0]
+            deduped_players.append((3, k_p2d, k_score))
+            draw_styled_camera_box(cam_display, k_box, 3, k_score)
+
+        for cid in [1, 2, 4]:
+            raw_players[cid].sort(key=lambda x: -x[0])
+            accepted_pts = []
+            for score, p2d, box in raw_players[cid]:
+                too_close = False
+                for acc_p in accepted_pts:
+                    if np.hypot(p2d[0] - acc_p[0], p2d[1] - acc_p[1]) < 22.0:
+                        too_close = True
+                        break
+                if not too_close:
+                    accepted_pts.append(p2d)
+                    deduped_players.append((cid, p2d, score))
+                    draw_styled_camera_box(cam_display, box, cid, score)
+
+        # 3. Speler Tracking + Anti-Jitter EMA Smoothing
+        active_player_tracks = player_tracker.update(deduped_players)
+
+        # 4. SORT Baltracking met Time Series Voorspelling
         pred_pos = tracker.predict()
         chosen_measurement = None
         chosen_conf = None
 
         if pred_pos is not None and tracker.missing_frames <= tracker.max_missing:
-            # Gating op basis van Time Series Prediction
             gated = []
             for cand in ball_candidates:
                 d = np.linalg.norm(cand['center'] - pred_pos)
@@ -437,7 +614,6 @@ def main():
                 chosen_measurement = gated[0][1]['center']
                 chosen_conf = gated[0][1]['conf']
         elif ball_candidates:
-            # Re-acquisitie (SORT init): mag NIET op een voet initialiseren tenzij hoge conf (>= 0.40)
             reacq = []
             for cand in ball_candidates:
                 if is_foot_region(cand['center'], player_boxes):
@@ -456,18 +632,16 @@ def main():
 
         current_ball_cam = tracker.get_pos()
         current_ball_2d = None
-
         prev_ball_2d = last_known_2d_ball
 
         if current_ball_cam is not None:
             total_ball_frames += 1
             draw_camera_ball_highlight(cam_display, current_ball_cam, chosen_conf)
-            mapped = transform_points([current_ball_cam], H, pitch_img.shape[1], pitch_img.shape[0])
+            mapped = transform_points([current_ball_cam], Ht, pitch_img.shape[1], pitch_img.shape[0])
             if len(mapped) > 0:
-                p2d = (int(mapped[0][0]), int(mapped[0][1]))
+                p2d = (int(round(mapped[0][0])), int(round(mapped[0][1])))
                 current_ball_2d = p2d
-                # Voeg toe aan balspoor (start een nieuw segment bij grote sprongen)
-                if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 60:
+                if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 65:
                     ball_trail.append(p2d)
                 else:
                     ball_trail = [p2d]
@@ -479,43 +653,45 @@ def main():
             if len(ball_trail) > 0:
                 ball_trail.pop(0)
 
-        mapped_a = transform_points(detected_players[1], H, pitch_img.shape[1], pitch_img.shape[0])
-        mapped_b = transform_points(detected_players[2], H, pitch_img.shape[1], pitch_img.shape[0])
+        pts_a = [t['pos'] for t in active_player_tracks.values() if t['team'] == 1]
+        pts_b = [t['pos'] for t in active_player_tracks.values() if t['team'] in [2, 3]]
+        speed_kmh, possession = compute_match_telemetry(current_ball_2d, prev_ball_2d, pts_a, pts_b, fps)
 
-        speed_kmh, possession = compute_match_telemetry(current_ball_2d, prev_ball_2d, mapped_a, mapped_b, fps)
-
-        for pts_2d in [mapped_a, mapped_b]:
-            for p in pts_2d:
-                all_player_points.append(p)
+        for t in active_player_tracks.values():
+            all_player_points.append(t['pos'])
 
         # -------------------------------------------------------------
         # Renderen & Compositing
         # -------------------------------------------------------------
-        minimap_frame = draw_tactical_radar(pitch_img, detected_players, H, current_ball_2d, ball_trail)
+        minimap_frame = draw_tactical_radar(pitch_img, active_player_tracks, current_ball_2d, ball_trail)
 
         cam_resized = cv2.resize(cam_display, (cam_w, target_h))
         minimap_resized = cv2.resize(minimap_frame, (minimap_w, target_h))
         combined = np.hstack((cam_resized, minimap_resized))
 
+        # Telemetrie overlay ALLEEN op het camerabeeld (0 tot cam_w) zodat de minimap 100% vrij en helder blijft
         overlay = combined.copy()
-        cv2.rectangle(overlay, (0, 0), (combined_w, 55), (15, 15, 15), -1)
+        cv2.rectangle(overlay, (0, 0), (cam_w, 55), (15, 15, 15), -1)
         cv2.addWeighted(overlay, 0.85, combined, 0.15, 0, combined)
+        # Strakke scheidingslijn tussen camera en 2D radar
+        cv2.line(combined, (cam_w, 0), (cam_w, target_h), (40, 40, 40), 2)
 
-        cv2.putText(combined, "PSG (Team A)", (25, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 120, 40), 2, cv2.LINE_AA)
-        cv2.putText(combined, f": {len(detected_players[1])}", (190, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
+        num_psg = len([t for t in active_player_tracks.values() if t['team'] == 1])
+        num_inter = len([t for t in active_player_tracks.values() if t['team'] in [2, 3]])
 
-        cv2.putText(combined, "INTER (Team B)", (280, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (0, 220, 255), 2, cv2.LINE_AA)
-        cv2.putText(combined, f": {len(detected_players[2])}", (465, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(combined, "PSG", (25, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 120, 40), 2, cv2.LINE_AA)
+        cv2.putText(combined, f": {num_psg}", (75, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.putText(combined, "INTER", (160, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (0, 220, 255), 2, cv2.LINE_AA)
+        cv2.putText(combined, f": {num_inter}", (245, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
 
         ball_status = "BAL IN SPEL" if current_ball_2d is not None else "BAL ZOEKEND"
         ball_status_color = (0, 255, 0) if "IN SPEL" in ball_status else (0, 165, 255)
-        cv2.putText(combined, f"STATUS: {ball_status}", (550, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.68, ball_status_color, 2, cv2.LINE_AA)
+        cv2.putText(combined, f"STATUS: {ball_status}", (330, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.65, ball_status_color, 2, cv2.LINE_AA)
 
-        cv2.putText(combined, f"BEZIT: {possession}", (820, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.68, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(combined, f"BEZIT: {possession}", (620, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA)
         if speed_kmh > 1.0:
-            cv2.putText(combined, f"SNELHEID: {speed_kmh:.1f} km/h", (1070, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2, cv2.LINE_AA)
-
-        cv2.putText(combined, "2D FIFA TACTICAL RADAR", (cam_w + 25, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(combined, f"SNELHEID: {speed_kmh:.1f} km/h", (940, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2, cv2.LINE_AA)
 
         out.write(combined)
         frame_idx += 1
