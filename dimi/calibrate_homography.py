@@ -1,21 +1,24 @@
 """
-Interactieve Begeleide Homografie Calibratie Tool (Guided Step-by-Step GUI).
+Interactieve Begeleide Homografie Calibratie Tool (Responsive & Resizable GUI).
 Auteur: Dmitrij Tchervonisjenko (Team: Git Push and Pray)
 
 BELANGRIJKE VERBETERINGEN:
-1. GELEID MODEL: Je hoeft NIET meer te gokken of te klikken op het 2D veld!
-   Het 2D veld toont automatisch een pulserend doelwit voor het gevraagde veldpunt.
-   Je klikt ALLEEN MAAR op het camerabeeld (links)!
-2. GEEN VERTIKALE OFFSET: De muiscoördinaten zijn 100% pixel-perfect gekalibreerd.
-   Waar je klikt, daar verschijnt de cirkel exact onder je cursor.
-3. LIVE OVERLAY: Zodra je >= 4 punten hebt, toont het camerabeeld de echte
-   geprojecteerde veldlijnen in realtime.
-4. TOETS 'a': Laad direct de wiskundig berekende voorinstelling!
+1. VOLLEDIG SCHAALBAAR (cv2.WINDOW_NORMAL):
+   Het venster past nu op elk scherm (standaard compact 1196x415 px).
+   Je kunt het venster vrij vergroten/verkleinen door aan de randen te slepen
+   of via de sneltoetsen '+' en '-'.
+2. BEGELEIDE PUNTEN: Het 2D veld (rechts) toont automatisch het doelwit met een
+   pulserende gele bullseye. Je klikt ALLEEN MAAR op het camerabeeld (links)!
+3. DIRECT OPSLAAN MOGELIJK: Zodra je >= 4 punten hebt (zoals in je screenshot!),
+   kun je op elk moment op 's' drukken om op te slaan. Je hoeft niet per se
+   alle 10 punten te voltooien.
 
 Toetsen:
     - Linker Muisklik : Punt aanduiden op camerabeeld (links)
     - SPATIE of 'n'   : Huidig doelwit overslaan (Skip)
     - 'z'              : Laatste punt ongedaan maken (Undo)
+    - '+' / '='        : Inzoomen (venster groter maken)
+    - '-' / '_'        : Uitzoomen (venster compacter maken)
     - 'r'              : Reset alle punten
     - 'a'              : Laad automatische referentie-voorinstelling (Auto)
     - 'f' / 'b'        : 30 frames vooruit / achteruit in de video
@@ -42,12 +45,12 @@ CAM_ORIG_H = 1080
 PITCH_ORIG_W = 1050
 PITCH_ORIG_H = 680
 
-# Weergave in venster
-DISP_H = 540
-CAM_DISP_W = 960   # 1920 * 0.5
-PITCH_DISP_W = int(PITCH_ORIG_W * (DISP_H / PITCH_ORIG_H)) # 834
-TOTAL_W = CAM_DISP_W + PITCH_DISP_W
-BAR_H = 60
+# Compacte standaardafmetingen (past gegarandeerd op elk laptop/monitor scherm)
+DISP_H = 360
+CAM_DISP_W = int(CAM_ORIG_W * (DISP_H / CAM_ORIG_H))          # 640
+PITCH_DISP_W = int(PITCH_ORIG_W * (DISP_H / PITCH_ORIG_H))    # 556
+TOTAL_W = CAM_DISP_W + PITCH_DISP_W                           # 1196
+BAR_H = 55
 
 # Officiële doellijst voor stap-voor-stap kalibratie (Ground Truth FIFA 1050x680)
 GUIDED_TARGETS = [
@@ -133,13 +136,25 @@ current_frame_idx = 0
 cam_frame_orig = None
 pitch_orig = None
 
-# Geklikte punten mapping: { target_id: [cam_x, cam_y] }
 calibrated_points = {}
 current_target_idx = 0
 mouse_x, mouse_y = -1, -1
 animation_tick = 0
 
 window_name = "Begeleide Homografie Calibrator - Team Git Push and Pray"
+
+
+def update_window_dimensions(new_disp_h):
+    global DISP_H, CAM_DISP_W, PITCH_DISP_W, TOTAL_W
+    DISP_H = new_disp_h
+    CAM_DISP_W = int(CAM_ORIG_W * (DISP_H / CAM_ORIG_H))
+    PITCH_DISP_W = int(PITCH_ORIG_W * (DISP_H / PITCH_ORIG_H))
+    TOTAL_W = CAM_DISP_W + PITCH_DISP_W
+    try:
+        cv2.resizeWindow(window_name, TOTAL_W, BAR_H + DISP_H)
+    except Exception:
+        pass
+    print(f"[ZOOM] Venstergrootte aangepast: {TOTAL_W}x{BAR_H + DISP_H} (DISP_H={DISP_H})")
 
 
 def load_frame(idx):
@@ -160,7 +175,6 @@ def mouse_callback(event, x, y, flags, param):
     mouse_x, mouse_y = x, y
 
     if event == cv2.EVENT_LBUTTONDOWN:
-        # Controleer of klik binnen het camerabeeld valt (onder de menubalk en links)
         if y >= BAR_H and y < (BAR_H + DISP_H) and x < CAM_DISP_W:
             img_y = y - BAR_H
             orig_cam_x = float(x) * (CAM_ORIG_W / CAM_DISP_W)
@@ -196,7 +210,6 @@ def compute_current_homography():
     if H is None:
         return None, 0.0
 
-    # Bereken reprojection error
     pts_h = np.hstack([pts_cam, np.ones((len(pts_cam), 1))])
     proj = (H @ pts_h.T).T
     proj = proj[:, :2] / proj[:, 2:3]
@@ -261,7 +274,7 @@ def render_display():
 
         if tid in calibrated_points:
             cx, cy = int(calibrated_points[tid][0]), int(calibrated_points[tid][1])
-            # Groen vinkje / cirkel op camera
+            # Groen op camera
             cv2.circle(cam_vis, (cx, cy), 7, (0, 255, 0), -1, cv2.LINE_AA)
             cv2.circle(cam_vis, (cx, cy), 13, (0, 0, 0), 2, cv2.LINE_AA)
             cv2.putText(cam_vis, f"{idx+1}", (cx + 10, cy - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 3, cv2.LINE_AA)
@@ -273,75 +286,72 @@ def render_display():
             cv2.putText(pitch_vis, f"{idx+1}", (px + 10, py - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3, cv2.LINE_AA)
             cv2.putText(pitch_vis, f"{idx+1}", (px + 10, py - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
         else:
-            # Neutraal grijs klein stipje op 2D veld
+            # Neutraal grijs stipje op 2D veld
             cv2.circle(pitch_vis, (px, py), 4, (120, 120, 120), -1, cv2.LINE_AA)
 
-    # Animeer het ACTIEVE doelwit op het 2D veld (pulserende gele bullseye)
+    # Pulserend doelwit op 2D veld
     active_target = None
     if current_target_idx < len(GUIDED_TARGETS):
         active_target = GUIDED_TARGETS[current_target_idx]
         tpx, tpy = int(active_target["coord_pitch"][0]), int(active_target["coord_pitch"][1])
 
         pulse_r = int(14 + 6 * math.sin(animation_tick * 0.25))
-        # Gele pulserende cirkel
         cv2.circle(pitch_vis, (tpx, tpy), pulse_r, (0, 255, 255), 3, cv2.LINE_AA)
         cv2.circle(pitch_vis, (tpx, tpy), 5, (0, 255, 255), -1, cv2.LINE_AA)
-        # Dradenkruis
         cv2.line(pitch_vis, (tpx - 25, tpy), (tpx + 25, tpy), (0, 255, 255), 1, cv2.LINE_AA)
         cv2.line(pitch_vis, (tpx, tpy - 25), (tpx, tpy + 25), (0, 255, 255), 1, cv2.LINE_AA)
-        # Label
         lbl = f"HIER: {active_target['name']}"
-        cv2.putText(pitch_vis, lbl, (tpx - 50, tpy - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(pitch_vis, lbl, (tpx - 50, tpy - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(pitch_vis, lbl, (max(10, tpx - 70), max(25, tpy - 25)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(pitch_vis, lbl, (max(10, tpx - 70), max(25, tpy - 25)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2, cv2.LINE_AA)
 
     # Schaal beide schermen exact naar vensterafmetingen
     cam_disp = cv2.resize(cam_vis, (CAM_DISP_W, DISP_H))
     pitch_disp = cv2.resize(pitch_vis, (PITCH_DISP_W, DISP_H))
 
-    # VOEG EEN VERGROOTGLAS TOE AAN DE CURSOR OP HET CAMERABEELD
+    # VERGROOTGLAS BIJ CURSOR OP CAMERABEELD
     if mouse_y >= BAR_H and mouse_y < (BAR_H + DISP_H) and mouse_x < CAM_DISP_W:
-        # Cursor bevindt zich op het camerabeeld
         img_y = mouse_y - BAR_H
         cx = int(float(mouse_x) * (CAM_ORIG_W / CAM_DISP_W))
         cy = int(float(img_y) * (CAM_ORIG_H / DISP_H))
 
-        # Vergrootglas in de rechterbovenhoek van het camerabeeld (200x200 px)
-        loupe_w, loupe_h = 180, 180
-        zoom_radius = 45
+        loupe_w, loupe_h = 160, 160
+        zoom_radius = 40
         min_x, max_x = max(0, cx - zoom_radius), min(CAM_ORIG_W, cx + zoom_radius)
         min_y, max_y = max(0, cy - zoom_radius), min(CAM_ORIG_H, cy + zoom_radius)
 
         crop = cam_frame_orig[min_y:max_y, min_x:max_x]
         if crop.size > 0:
             loupe = cv2.resize(crop, (loupe_w, loupe_h), interpolation=cv2.INTER_LINEAR)
-            # Dradenkruis in vergrootglas
             mid_lx, mid_ly = loupe_w // 2, loupe_h // 2
-            cv2.line(loupe, (mid_lx - 15, mid_ly), (mid_lx + 15, mid_ly), (0, 0, 255), 2)
-            cv2.line(loupe, (mid_lx, mid_ly - 15), (mid_lx, mid_ly + 15), (0, 0, 255), 2)
+            cv2.line(loupe, (mid_lx - 12, mid_ly), (mid_lx + 12, mid_ly), (0, 0, 255), 2)
+            cv2.line(loupe, (mid_lx, mid_ly - 12), (mid_lx, mid_ly + 12), (0, 0, 255), 2)
             cv2.rectangle(loupe, (0, 0), (loupe_w - 1, loupe_h - 1), (0, 255, 255), 2)
-            cv2.putText(loupe, f"Zoom 3x ({cx}, {cy})", (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(loupe, f"Zoom 3x ({cx}, {cy})", (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 255), 1, cv2.LINE_AA)
 
-            # Plaats loupe in rechterbovenhoek van cam_disp
-            cam_disp[10:10 + loupe_h, CAM_DISP_W - loupe_w - 10:CAM_DISP_W - 10] = loupe
+            cam_disp[8:8 + loupe_h, CAM_DISP_W - loupe_w - 8:CAM_DISP_W - 8] = loupe
 
     combined = np.hstack((cam_disp, pitch_disp))
 
-    # Menubalk bovenaan (exact BAR_H = 60 px)
+    # Menubalk bovenaan (BAR_H = 55 px)
     bar = np.zeros((BAR_H, TOTAL_W, 3), dtype=np.uint8)
-
     num_done = len(calibrated_points)
+
     if active_target is not None:
-        title = f"👉 STAP {current_target_idx + 1}/{len(GUIDED_TARGETS)}: Klik op '{active_target['name']}' in de video (LINKS)"
-        sub = f"Uitleg: {active_target['desc']}  |  [Spatie]=Overslaan  [z]=Undo  [a]=Auto-Preset  [s]=Opslaan"
-        bar_bg = (20, 40, 120)
+        title = f"👉 STAP {current_target_idx + 1}/{len(GUIDED_TARGETS)}: {active_target['name']}  |  Punten geplaatst: {num_done}"
+        if num_done >= 4:
+            title += "  >> [s] = KLAAR OM OP TE SLAAN! <<"
+            bar_bg = (20, 100, 30)
+        else:
+            bar_bg = (20, 40, 120)
+        sub = f"{active_target['desc']}  |  [Spatie]=Overslaan  [z]=Undo  [+] / [-]=Schermgrootte  [s]=Opslaan"
     else:
         title = f"🎉 KLAAR! Alle {num_done} punten vastgelegd!  |  Druk op 's' om op te slaan!"
         sub = f"Foutmarge: {mean_err:.2f} px  |  [s]=Opslaan  [z]=Undo  [r]=Reset  [a]=Auto-Preset"
         bar_bg = (20, 120, 20)
 
     cv2.rectangle(bar, (0, 0), (TOTAL_W, BAR_H), bar_bg, -1)
-    cv2.putText(bar, title, (20, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2, cv2.LINE_AA)
-    cv2.putText(bar, sub, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (200, 220, 255), 1, cv2.LINE_AA)
+    cv2.putText(bar, title, (15, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(bar, sub, (15, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 220, 255), 1, cv2.LINE_AA)
 
     final_gui = np.vstack((bar, combined))
     return final_gui
@@ -417,7 +427,9 @@ def main():
 
     load_frame(0)
 
-    cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+    # WINDOW_NORMAL maakt het venster vrij herschaalbaar en maximaliseerbaar!
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, TOTAL_W, BAR_H + DISP_H)
     cv2.setMouseCallback(window_name, mouse_callback)
 
     print("=" * 65)
@@ -427,8 +439,8 @@ def main():
     print("1. Kijk naar het 2D veld (rechts): de gele pulserende stip toont het doelwit.")
     print("2. Klik ALLEEN op het camerabeeld (links) op datzelfde punt.")
     print("3. Druk op [SPATIE] om een doelwit over te slaan als het niet zichtbaar is.")
-    print("4. Druk op 'a' om direct de automatische voorinstelling te laden.")
-    print("5. Druk op 's' om op te slaan!")
+    print("4. Druk op '+' of '-' om het venster te vergroten of verkleinen.")
+    print("5. Druk op 's' om op te slaan (kan direct zodra je >= 4 punten hebt)!")
     print("=" * 65)
 
     while True:
@@ -439,6 +451,12 @@ def main():
         if key == 27 or key == ord('q'):
             print("[INFO] Afgesloten.")
             break
+        elif key in (ord('+'), ord('=')):
+            # Zoom in
+            update_window_dimensions(min(600, DISP_H + 40))
+        elif key in (ord('-'), ord('_')):
+            # Zoom out
+            update_window_dimensions(max(240, DISP_H - 40))
         elif key == ord(' '):
             # Skip current target
             if current_target_idx < len(GUIDED_TARGETS):
