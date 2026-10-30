@@ -55,17 +55,20 @@ with tab1:
             st.warning("De synchrone video is nog niet gegenereerd. Draai eerst: `python dimi/minimap_pipeline.py`")
 
     with col2:
-        st.markdown("#### 🎨 Legende 2D Minimap")
+        st.markdown("#### 🎨 Officiële Legende & Kleurencodering")
         st.markdown(
             """
-            * 🔵 **Team A (Blauw):** Veldspelers
-            * 🟡 **Team B (Geel):** Veldspelers
-            * 🟠 **Doelman (Oranje):** Keeper in het strafschopgebied
-            * ⚫ **Scheidsrechter (Zwart):** Arbitrage
-            * 🔴 **Bal (Rood/Wit):** Wedstrijdbal met dynamisch spoor (trail)
+            * 🔵 **PSG (Team A):** Donkerblauw / Royal Navy `(180, 50, 20)`
+            * 🟡 **Inter Milan (Team B):** Fel Geel `(0, 220, 255)`
+            * 🟠 **Doelman (Keeper):** Vlammend Oranje `(0, 130, 255)`
+            * 🟢 **Scheidsrechter:** Fluo Gifgroen `(30, 255, 140)` met donkere rand
+            * ⚪🔴 **Bal:** Zuiver Wit met Rode contour en dynamische neon-trail
             """
         )
-        st.info("💡 **Planar Assumption:** Spelers raken het veld met hun voeten. We projecteren daarom `(x_center, y_max)` van de bounding box!")
+        st.info("💡 **Planar Assumption:** Spelers raken het veld met hun voeten. We projecteren daarom `(x_center, y_max)` van de bounding box naar het 2D vlak!")
+        st.success("⚡ **Kinematische Gating:** Voorkomt valse sprongen naar statische markeringen (zoals de witte penaltystip op het gras).")
+        st.metric("Live Bal Snelheid", "Realtime (km/u)")
+        st.metric("Tactisch Balbezit", "Team dominantie (Voronoi/K-NN)")
 
 # ----------------- TAB 2: Heatmap -----------------
 with tab2:

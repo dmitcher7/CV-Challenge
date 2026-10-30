@@ -13,9 +13,9 @@ from common import DATA_YAML, RUNS_DIR, RUN_NAME, DIMI_DIR, pick_device, disable
 def main():
     parser = argparse.ArgumentParser(description="Train YOLO specifically tuned for ball detection.")
     parser.add_argument("--model", type=str, default="yolo11s.pt", help="Pretrained YOLO model (e.g. yolo11s.pt, yolo11m.pt)")
-    parser.add_argument("--imgsz", type=int, default=1280, help="Image resolution (1280 is required for small ball detection)")
-    parser.add_argument("--epochs", type=int, default=50, help="Number of training epochs")
-    parser.add_argument("--batch", type=int, default=8, help="Batch size (8 fits well on RTX 4070 8GB)")
+    parser.add_argument("--imgsz", type=int, default=1600, help="High resolution (1600 for sharp small object detection)")
+    parser.add_argument("--epochs", type=int, default=45, help="Number of training epochs")
+    parser.add_argument("--batch", type=int, default=4, help="Batch size (4 fits comfortably at 1600p on 8GB GPU)")
     parser.add_argument("--lr0", type=float, default=0.01, help="Initial learning rate")
     args = parser.parse_args()
 
@@ -44,7 +44,9 @@ def main():
         seed=0,
         plots=True,
         workers=2,
-        close_mosaic=10,  # Turn off mosaic for last 10 epochs for sharp small object boundaries
+        close_mosaic=15,  # Turn off mosaic 15 epochs before end for clean small-ball boundaries
+        box=9.0,          # Extra box loss weight for precise localization of small objects
+        cls=1.0,          # Extra class loss weight
     )
 
     print("\n" + "=" * 60)
