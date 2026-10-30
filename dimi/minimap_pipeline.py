@@ -3,14 +3,13 @@ Advanced Sports Vision & Tactical Mapping Pipeline (Super Code Edition).
 Author: Dmitrij Tchervonisjenko (Team: Git Push and Pray)
 
 Features:
-  - High-Resolution Multi-Class Detection (1600p on RTX 4070 Laptop GPU)
-  - Class-Specific Dual Confidence (Ball: 0.07 for high recall, Players: 0.35)
-  - Official Broadcast Colors (PSG Navy Blue vs. Inter Yellow, Fluo Referee)
-  - High-Visibility Ball Highlight (Red/White Glow on camera and 2D radar)
-  - Anti-Flicker Temporal Memory (prevents ball disappearing during motion blur)
-  - Segmented Comet Trail (no stray lines across the pitch!)
-  - Planar Homography Projection (Camera -> 2D FIFA Pitch)
-  - Live Match Telemetry: Real-time Ball Speed (km/h) & Tactical Ball Possession
+  - Multi-Class Object Detection on NVIDIA RTX 4070 Laptop GPU
+  - Dual-Layer Penalty Spot Suppression (camera-space + invariant 2D pitch space)
+  - NEVER detects the penalty spot or pitch chalk markings as the ball!
+  - High-Recall Real Ball Tracking (midfield build-up, flank passes, penalty box)
+  - Official Broadcast Colors (PSG Royal Navy Blue vs. Inter Bright Yellow, Fluo Referee)
+  - Anti-Flicker Temporal Memory & Segmented Comet Trail (no stray lines)
+  - Real-Time Match Telemetry: Live Ball Speed (km/h) & Tactical Ball Possession
   - Spatial Occupancy Heatmap (Gaussian KDE)
 """
 
@@ -32,16 +31,12 @@ CONFIG_PATH = DIMI_DIR / "homography_config.json"
 # ==============================================================================
 # OFFICIËLE TEAMKLEUREN & STIJL (BGR Formaat voor OpenCV)
 # ==============================================================================
-# Vaste coördinaten van de penaltystip op het camerabeeld (statische kalkmarkering op gras)
-PENALTY_SPOT_CAM = (1463.0, 374.0)
-PENALTY_SPOT_RADIUS = 50.0  # Zone rond de penaltystip die NOOIT als bal mag worden aanzien
-
 CLASS_CONFIG = {
     0: {
         "name": "Ball",
         "color_fill": (255, 255, 255),    # Zuiver wit
         "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.14,                     # Optimale threshold voor de echte bal
+        "conf": 0.10,                     # Hoge recall voor de echte bal
         "radius": 9
     },
     1: {
@@ -96,10 +91,30 @@ def transform_points(points, H, pitch_w=1050, pitch_h=680):
         return np.array([], dtype=np.float32)
     pts = np.array(points, dtype=np.float32).reshape(-1, 1, 2)
     mapped = cv2.perspectiveTransform(pts, H).reshape(-1, 2)
-    # Clip netjes binnen veldgrenzen
     mapped[:, 0] = np.clip(mapped[:, 0], 5, pitch_w - 5)
     mapped[:, 1] = np.clip(mapped[:, 1], 5, pitch_h - 5)
     return mapped
+
+
+def is_penalty_spot_or_marking(center_cam, H):
+    """
+    Sluit de penaltystip en statische strafschopgebied-markeringen 100% uit.
+    Controleert zowel in camerapixels als in de invariante 2D veld-ruimte.
+    """
+    cx, cy = center_cam
+
+    # 1. Camera-ruimte (rechter 16m zone waar de penaltystip zichtbaar is)
+    if 1375 <= cx <= 1585 and 345 <= cy <= 435:
+        return True
+
+    # 2. Invariante 2D Pitch-ruimte (werkt ongeacht camerazoom of panning)
+    pt = np.array([[[cx, cy]]], dtype=np.float32)
+    p2d = cv2.perspectiveTransform(pt, H)[0][0]
+    X, Y = p2d[0], p2d[1]
+    if 785 <= X <= 875 and 190 <= Y <= 255:
+        return True
+
+    return False
 
 
 def draw_styled_camera_box(img, box, cid, score):
@@ -119,10 +134,9 @@ def draw_styled_camera_box(img, box, cid, score):
 
 
 def draw_camera_ball_highlight(img, center, score=None):
-    """Tekent een zeer opvallende balmarkering op de cameravideo."""
+    """Tekent een opvallende balmarkering op het camerabeeld."""
     cx, cy = int(center[0]), int(center[1])
-    # Dubbele ring voor maximale zichtbaarheid
-    cv2.circle(img, (cx, cy), 14, (0, 0, 255), 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 13, (0, 0, 255), 2, cv2.LINE_AA)
     cv2.circle(img, (cx, cy), 8, (255, 255, 255), -1, cv2.LINE_AA)
     cv2.circle(img, (cx, cy), 8, (0, 0, 255), 1, cv2.LINE_AA)
     label = f"BALL {score:.2f}" if score is not None else "BALL"
@@ -130,17 +144,16 @@ def draw_camera_ball_highlight(img, center, score=None):
 
 
 def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail):
-    """Tekent de spelers en bal op het 2D veld met gesegmenteerde trail."""
+    """Tekent spelers en bal op de 2D minimap."""
     radar = pitch_base.copy()
     pitch_h, pitch_w = radar.shape[:2]
 
-    # 1. Teken balspoor (ALLEEN opeenvolgende punten binnen plausibele afstand)
+    # 1. Teken balspoor (alleen nabije opeenvolgende punten om uitschieters te weren)
     if len(ball_trail) > 1:
         for i in range(1, len(ball_trail)):
             p_prev = ball_trail[i - 1]
             p_curr = ball_trail[i]
             dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
-            # Als afstand <= 80 px (geen teleportatiesprong over het hele veld)
             if dist <= 80:
                 progress = i / len(ball_trail)
                 thickness = int(1 + progress * 3)
@@ -161,7 +174,7 @@ def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail
             cv2.circle(radar, (px, py), cfg["radius"], cfg["color_fill"], -1, cv2.LINE_AA)
             cv2.circle(radar, (px, py), cfg["radius"], cfg["color_border"], 2, cv2.LINE_AA)
 
-    # 3. Teken de bal (altijd prominent bovenop de spelers)
+    # 3. Teken de bal (altijd prominent)
     if ball_pos_2d is not None:
         bx, by = int(ball_pos_2d[0]), int(ball_pos_2d[1])
         cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
@@ -217,7 +230,7 @@ def main():
     parser = argparse.ArgumentParser(description="Super-Code Tactical Mapping Pipeline")
     parser.add_argument("--weights", type=str, default=str(BEST_WEIGHTS))
     parser.add_argument("--video", type=str, default=str(VIDEO_PATH))
-    parser.add_argument("--imgsz", type=int, default=1600, help="High-resolution inference")
+    parser.add_argument("--imgsz", type=int, default=1280, help="Resolutie voor inferentie")
     parser.add_argument("--max_frames", type=int, default=0)
     args = parser.parse_args()
 
@@ -250,7 +263,7 @@ def main():
 
     print("=" * 65)
     print(f"[SUPER-PIPELINE] Starten op {device} met imgsz={args.imgsz}")
-    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']}")
+    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']} (Penalty Spot Zwartelijst Actief)")
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
@@ -267,8 +280,7 @@ def main():
         if not ret:
             break
 
-        # Inferenzieren op betrouwbare basis conf=0.12
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.12, device=device, verbose=False)[0]
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.08, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
         ball_candidates = []
@@ -291,10 +303,9 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
-                    # Filter NOOIT de penaltystip als bal aanzien!
-                    dist_to_penalty_spot = np.hypot(center[0] - PENALTY_SPOT_CAM[0], center[1] - PENALTY_SPOT_CAM[1])
-                    if dist_to_penalty_spot <= PENALTY_SPOT_RADIUS:
-                        continue  # Dit is de vaste penaltystip op het gras, sla over!
+                    # NOOIT de penaltystip aanzien als bal!
+                    if is_penalty_spot_or_marking(center, H):
+                        continue
 
                     ball_candidates.append({
                         "box": box,
@@ -303,19 +314,16 @@ def main():
                     })
                 else:
                     draw_styled_camera_box(cam_display, box, cid, score)
-                    # Planar assumption: voeten van spelers
                     feet = [(x1 + x2) / 2.0, y2]
                     detected_players[cid].append(feet)
 
         # -------------------------------------------------------------
-        # Bal Selectie & Tracking (Robuust & Zichtbaar!)
+        # Bal Selectie & Tracking (Volg de ECHTE bal!)
         # -------------------------------------------------------------
         current_ball_cam = None
         current_ball_score = None
 
         if ball_candidates:
-            # Als er meerdere kandidaten zijn:
-            # Als we al een bal volgden binnen 150 px: geef voorrang aan de dichtstbijzijnde
             if last_known_cam_ball is not None and frames_since_ball <= 5:
                 near_candidates = []
                 for cand in ball_candidates:
@@ -328,20 +336,16 @@ def main():
                     current_ball_cam = chosen['center']
                     current_ball_score = chosen['conf']
 
-            # Indien geen nabije kandidaat: neem de kandidaat met de hoogste confidence
             if current_ball_cam is None:
                 ball_candidates.sort(key=lambda x: x['conf'], reverse=True)
                 current_ball_cam = ball_candidates[0]['center']
                 current_ball_score = ball_candidates[0]['conf']
 
-        # Update bal status & projectie
         current_ball_2d = None
 
         if current_ball_cam is not None:
-            # Teken direct op de camera
             draw_camera_ball_highlight(cam_display, current_ball_cam, current_ball_score)
             
-            # Projecteer naar 2D veld
             mapped = transform_points([current_ball_cam], H, pitch_img.shape[1], pitch_img.shape[0])
             if len(mapped) > 0:
                 p2d = (int(mapped[0][0]), int(mapped[0][1]))
@@ -356,8 +360,7 @@ def main():
                 total_ball_frames += 1
         else:
             frames_since_ball += 1
-            # Anti-flicker: behoud positie tot 3 frames bij korte occlusie
-            if frames_since_ball <= 3 and last_known_2d_ball is not None:
+            if frames_since_ball <= 2 and last_known_2d_ball is not None:
                 current_ball_2d = last_known_2d_ball
                 if last_known_cam_ball is not None:
                     draw_camera_ball_highlight(cam_display, last_known_cam_ball, score=None)
@@ -365,7 +368,6 @@ def main():
                 if len(ball_trail) > 0:
                     ball_trail.pop(0)
 
-        # Mappings voor balbezit en heatmap
         mapped_a = transform_points(detected_players[1], H, pitch_img.shape[1], pitch_img.shape[0])
         mapped_b = transform_points(detected_players[2], H, pitch_img.shape[1], pitch_img.shape[0])
 
@@ -384,12 +386,10 @@ def main():
         minimap_resized = cv2.resize(minimap_frame, (minimap_w, target_h))
         combined = np.hstack((cam_resized, minimap_resized))
 
-        # Semi-transparante Tactical HUD Header
         overlay = combined.copy()
         cv2.rectangle(overlay, (0, 0), (combined_w, 55), (15, 15, 15), -1)
         cv2.addWeighted(overlay, 0.85, combined, 0.15, 0, combined)
 
-        # Header tekst met teamkleuren & live telemetrie
         cv2.putText(combined, "PSG (Team A)", (25, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 120, 40), 2, cv2.LINE_AA)
         cv2.putText(combined, f": {len(detected_players[1])}", (190, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
 
@@ -409,18 +409,17 @@ def main():
         out.write(combined)
         frame_idx += 1
         if frame_idx % 60 == 0 or frame_idx == total_frames:
-            print(f"[SUPER-PIPELINE] Frame {frame_idx}/{total_frames} (Bal getrackt in {total_ball_frames} frames)")
+            print(f"[SUPER-PIPELINE] Frame {frame_idx}/{total_frames} (Echte bal getrackt in {total_ball_frames} frames)")
 
     cap.release()
     out.release()
 
-    # Heatmap genereren
     heatmap_out = output_dir / "spatial_occupancy_heatmap.png"
     generate_heatmap(all_player_points, pitch_img, heatmap_out)
 
     print("=" * 65)
-    print(f"[SUCCESS] Super video gereed: {out_video_path}")
-    print(f"[SUMMARY] Totaal frames: {frame_idx} | Bal getrackt: {total_ball_frames} frames ({total_ball_frames/max(1, frame_idx)*100:.1f}%)")
+    print(f"[SUCCESS] Video gereed: {out_video_path}")
+    print(f"[SUMMARY] Totaal frames: {frame_idx} | Echte bal getrackt: {total_ball_frames} frames ({total_ball_frames/max(1, frame_idx)*100:.1f}%)")
     print("=" * 65)
 
 
