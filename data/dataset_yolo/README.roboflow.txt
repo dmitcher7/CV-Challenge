@@ -1,8 +1,8 @@
 
-Object Detection - v3 2026-10-30 1:52pm
+Object Detection - v4 2026-10-30 3:13pm
 ==============================
 
-This dataset was exported via roboflow.com on October 30, 2026 at 12:56 PM GMT
+This dataset was exported via roboflow.com on October 30, 2026 at 2:13 PM GMT
 
 Roboflow is an end-to-end computer vision platform that helps you
 * collaborate with your team on computer vision projects
@@ -17,7 +17,7 @@ visit https://github.com/roboflow/notebooks
 
 To find over 100k other datasets and pre-trained models, visit https://universe.roboflow.com
 
-The dataset includes 118 images.
+The dataset includes 136 images.
 Object-Detection are annotated in YOLOv8 format.
 
 The following pre-processing was applied to each image:
