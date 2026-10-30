@@ -36,7 +36,7 @@ CLASS_CONFIG = {
         "name": "Ball",
         "color_fill": (255, 255, 255),    # Zuiver wit
         "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.10,                     # Hoge recall voor de echte bal
+        "conf": 0.07,                     # Optimale recall voor echte bal detectie
         "radius": 9
     },
     1: {
@@ -101,47 +101,33 @@ def transform_points(points, H, pitch_w=1050, pitch_h=680):
 
 def is_penalty_spot_or_marking(center_cam, H):
     """
-    Sluit de penaltystip en statische strafschopgebied-markeringen 100% uit.
-    Controleert zowel in camerapixels als in de invariante 2D veld-ruimte.
+    Sluit de penaltystip 100% uit.
+    Controleert zowel in de camerazone als in de gekalibreerde 2D pitchruimte.
     """
     cx, cy = center_cam
 
-    # 1. Camera-ruimte (rechter 16m zone waar de penaltystip zichtbaar is)
-    if 1370 <= cx <= 1590 and 340 <= cy <= 440:
+    # 1. Camera coordinaten (rechts van het 16m-gebied)
+    if 1350 <= cx <= 1620 and 345 <= cy <= 435:
         return True
 
-    # 2. Invariante 2D Pitch-ruimte (werkt ongeacht camerazoom of panning)
+    # 2. Invariante 2D Pitch-ruimte (onafhankelijk van panning of schaal)
     pt = np.array([[[cx, cy]]], dtype=np.float32)
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
-    if 780 <= X <= 960 and 190 <= Y <= 360:
+    if 870 <= X <= 990 and 200 <= Y <= 290:
         return True
 
     return False
 
 
-def is_player_cleat(ball_box, player_boxes):
-    """
-    Voorkomt dat witte voetbalschoenen/cleats als bal worden aanzien.
-    1. Vormcontrole: een bal is rond (aspect ratio ~ 1.0). Een schoen is langwerpig.
-    2. Positiecontrole: als een klein wit object direct aan de onderkant van een speler zit.
-    """
-    bx1, by1, bx2, by2 = ball_box
-    bcx = (bx1 + bx2) / 2.0
-    bcy = (by1 + by2) / 2.0
-    bw = bx2 - bx1
-    bh = by2 - by1
-
-    aspect = bw / max(1.0, bh)
-    if aspect < 0.60 or aspect > 1.65:
-        return True  # Langwerpige schoen/cleat
-
-    for pbox in player_boxes:
-        px1, py1, px2, py2 = pbox
-        # Als het object direct bij de hiel/voet van de speler zit
-        if px1 <= bcx <= px2 and (py2 - 25) <= bcy <= (py2 + 10) and bw < 14 and bh < 14:
+def is_foot_region(cand_center, player_boxes):
+    """Controleert of een coordinatenpunt zich bij de voeten/onderzijde van een speler bevindt."""
+    cx, cy = cand_center
+    for pb in player_boxes:
+        px1, py1, px2, py2 = pb
+        ph = py2 - py1
+        if (px1 - 8) <= cx <= (px2 + 8) and (py2 - 0.28 * ph) <= cy <= (py2 + 12):
             return True
-
     return False
 
 
@@ -182,7 +168,7 @@ def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail
             p_prev = ball_trail[i - 1]
             p_curr = ball_trail[i]
             dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
-            if dist <= 80:
+            if dist <= 60:
                 progress = i / len(ball_trail)
                 thickness = int(1 + progress * 3)
                 color = (0, int(150 + 105 * progress), 255)
@@ -296,9 +282,11 @@ def main():
     print("=" * 65)
 
     ball_trail = []
-    last_known_cam_ball = None
+    last_cam_ball = None
+    last_cam_vel = np.array([0.0, 0.0], dtype=np.float32)
     last_known_2d_ball = None
     frames_since_ball = 999
+    max_missing_frames = 8
     total_ball_frames = 0
     all_player_points = []
     frame_idx = 0
@@ -308,7 +296,7 @@ def main():
         if not ret:
             break
 
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.08, device=device, verbose=False)[0]
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.07, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
         player_boxes = []
@@ -322,7 +310,7 @@ def main():
 
             # 1. Eerst spelers verzamelen om schoenposities te kennen
             for box, cid, score in zip(boxes, classes, scores):
-                if cid in [1, 2, 3, 4] and score >= CLASS_CONFIG[cid]["conf"]:
+                if cid in [1, 2, 3, 4] and score >= 0.28:
                     player_boxes.append(box)
 
             # 2. Nu alle objecten filteren en tekenen
@@ -338,18 +326,21 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
-                    # Filter 1: NOOIT de penaltystip aanzien als bal!
+                    # Filter 1: Harde eliminatie van de penaltystip (camera + 2D pitch)
                     if is_penalty_spot_or_marking(center, H):
                         continue
 
-                    # Filter 2: NOOIT de schoenen/cleats van spelers aanzien als bal!
-                    if is_player_cleat(box, player_boxes):
+                    bw = x2 - x1
+                    bh = y2 - y1
+                    aspect = bw / max(1.0, bh)
+                    # Filter 2: Sferische vormcontrole (schoenen en krijtstrepen zijn langwerpig)
+                    if aspect < 0.60 or aspect > 1.65:
                         continue
 
                     ball_candidates.append({
                         "box": box,
                         "conf": float(score),
-                        "center": center
+                        "center": np.array(center, dtype=np.float32)
                     })
                 else:
                     draw_styled_camera_box(cam_display, box, cid, score)
@@ -357,56 +348,86 @@ def main():
                     detected_players[cid].append(feet)
 
         # -------------------------------------------------------------
-        # Bal Selectie & Tracking (Volg de ECHTE bal!)
+        # Kinematic Ball Tracker (Volg de ECHTE bal zonder sprongen!)
         # -------------------------------------------------------------
+        chosen_ball = None
+
+        if last_cam_ball is not None and frames_since_ball <= max_missing_frames:
+            # Kinematische gating op basis van voorspelde snelheid
+            pred_pos = last_cam_ball + (last_cam_vel if frames_since_ball <= 3 else np.array([0.0, 0.0], dtype=np.float32))
+            gated = []
+            for cand in ball_candidates:
+                dist = np.linalg.norm(cand['center'] - pred_pos)
+                max_allowed_dist = 65.0 + frames_since_ball * 15.0
+                if dist <= max_allowed_dist:
+                    cost = dist - cand['conf'] * 20.0
+                    gated.append((cost, cand))
+            if gated:
+                gated.sort(key=lambda x: x[0])
+                chosen_ball = gated[0][1]
+        elif ball_candidates:
+            # Re-acquisitie: mag NIET op een voet initialiseren tenzij hoge conf (>= 0.40)
+            reacq_cands = []
+            for cand in ball_candidates:
+                if is_foot_region(cand['center'], player_boxes):
+                    if cand['conf'] >= 0.40:
+                        reacq_cands.append(cand)
+                else:
+                    if cand['conf'] >= 0.16:
+                        reacq_cands.append(cand)
+            if reacq_cands:
+                reacq_cands.sort(key=lambda x: -x['conf'])
+                chosen_ball = reacq_cands[0]
+
         current_ball_cam = None
         current_ball_score = None
-
-        if ball_candidates:
-            if last_known_cam_ball is not None and frames_since_ball <= 5:
-                near_candidates = []
-                for cand in ball_candidates:
-                    d = np.hypot(cand['center'][0] - last_known_cam_ball[0], cand['center'][1] - last_known_cam_ball[1])
-                    if d <= 180:
-                        near_candidates.append((d, -cand['conf'], cand))
-                if near_candidates:
-                    near_candidates.sort()
-                    chosen = near_candidates[0][2]
-                    current_ball_cam = chosen['center']
-                    current_ball_score = chosen['conf']
-
-            if current_ball_cam is None:
-                ball_candidates.sort(key=lambda x: x['conf'], reverse=True)
-                current_ball_cam = ball_candidates[0]['center']
-                current_ball_score = ball_candidates[0]['conf']
-
         current_ball_2d = None
 
-        if current_ball_cam is not None:
+        if chosen_ball is not None:
+            curr_pos = chosen_ball['center']
+            if last_cam_ball is not None:
+                new_vel = (curr_pos - last_cam_ball) / max(1, frames_since_ball + 1)
+                speed = np.linalg.norm(new_vel)
+                if speed > 60:
+                    new_vel = new_vel * (60.0 / speed)
+                last_cam_vel = 0.60 * last_cam_vel + 0.40 * new_vel
+            last_cam_ball = curr_pos
+            frames_since_ball = 0
+            total_ball_frames += 1
+            current_ball_cam = curr_pos
+            current_ball_score = chosen_ball['conf']
             draw_camera_ball_highlight(cam_display, current_ball_cam, current_ball_score)
-            
+        else:
+            frames_since_ball += 1
+            if frames_since_ball <= max_missing_frames and last_cam_ball is not None:
+                # Kinematische inertie: overbrugt occlusie en bewegingsonscherpte zonder geknipper
+                if frames_since_ball <= 3:
+                    last_cam_vel = last_cam_vel * 0.75
+                    last_cam_ball = last_cam_ball + last_cam_vel
+                current_ball_cam = last_cam_ball
+                total_ball_frames += 1
+                draw_camera_ball_highlight(cam_display, current_ball_cam, score=None)
+            else:
+                last_cam_ball = None
+                last_cam_vel = np.array([0.0, 0.0], dtype=np.float32)
+
+        if current_ball_cam is not None:
             mapped = transform_points([current_ball_cam], H, pitch_img.shape[1], pitch_img.shape[0])
             if len(mapped) > 0:
                 p2d = (int(mapped[0][0]), int(mapped[0][1]))
                 current_ball_2d = p2d
-                ball_trail.append(p2d)
+                # Voeg toe aan balspoor (start een nieuw segment bij grote sprongen)
+                if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 60:
+                    ball_trail.append(p2d)
+                else:
+                    ball_trail = [p2d]
                 if len(ball_trail) > 25:
                     ball_trail.pop(0)
-
-                last_known_cam_ball = current_ball_cam
                 last_known_2d_ball = current_ball_2d
-                frames_since_ball = 0
-                total_ball_frames += 1
         else:
-            frames_since_ball += 1
-            # Robuust anti-flicker geheugen: overbrugt occlusie/motion blur tot 4 frames (130 ms)
-            if frames_since_ball <= 4 and last_known_2d_ball is not None:
-                current_ball_2d = last_known_2d_ball
-                if last_known_cam_ball is not None:
-                    draw_camera_ball_highlight(cam_display, last_known_cam_ball, score=None)
-            else:
-                if len(ball_trail) > 0:
-                    ball_trail.pop(0)
+            last_known_2d_ball = None
+            if len(ball_trail) > 0:
+                ball_trail.pop(0)
 
         mapped_a = transform_points(detected_players[1], H, pitch_img.shape[1], pitch_img.shape[0])
         mapped_b = transform_points(detected_players[2], H, pitch_img.shape[1], pitch_img.shape[0])
