@@ -399,7 +399,8 @@ def main():
                 total_ball_frames += 1
         else:
             frames_since_ball += 1
-            if frames_since_ball <= 2 and last_known_2d_ball is not None:
+            # Robuust anti-flicker geheugen: overbrugt occlusie/motion blur tot 4 frames (130 ms)
+            if frames_since_ball <= 4 and last_known_2d_ball is not None:
                 current_ball_2d = last_known_2d_ball
                 if last_known_cam_ball is not None:
                     draw_camera_ball_highlight(cam_display, last_known_cam_ball, score=None)
