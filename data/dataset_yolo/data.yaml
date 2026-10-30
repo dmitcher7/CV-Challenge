@@ -1,6 +1,5 @@
-train: ../train/images
-val: ../valid/images
-test: ../test/images
+train: train/images
+val: train/images
 
 nc: 5
 names: ['ball', 'player_A', 'player_B', 'player_B_goal_keeper', 'referee']
