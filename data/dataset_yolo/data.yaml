@@ -1,4 +1,3 @@
-path: C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\data\dataset_yolo
 train: ../train/images
 val: ../valid/images
 test: ../test/images
@@ -9,6 +8,6 @@ names: ['ball', 'player_A', 'player_B', 'player_B_goal_keeper', 'referee']
 roboflow:
   workspace: git-push-and-pray
   project: object-detection-sjoav
-  version: 1
+  version: 2
   license: Private
-  url: https://app.roboflow.com/git-push-and-pray/object-detection-sjoav/1
+  url: https://app.roboflow.com/git-push-and-pray/object-detection-sjoav/2
