@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extraheer frames uit videoclip voor labeling.")
     parser.add_argument("--video", type=str, default="data/raw_video/match.mp4", help="Pad naar de .mp4 video")
     parser.add_argument("--output", type=str, default="data/frames", help="Doelmap voor geëxtraheerde frames")
-    parser.add_argument("--num_frames", type=int, default=60, help="Aantal frames om te extraheren (standaard: 60)")
+    parser.add_argument("--num_frames", type=int, default=660, help="Aantal frames om te extraheren (standaard: 660)")
 
     args = parser.parse_args()
     extract_frames(args.video, args.output, args.num_frames)
