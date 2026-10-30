@@ -4,12 +4,13 @@ Author: Dmitrij Tchervonisjenko (Team: Git Push and Pray)
 
 Features:
   - High-Resolution Multi-Class Detection (1600p on RTX 4070 Laptop GPU)
-  - Class-Specific Dual Confidence Thresholds (Ball: 0.12, Players: 0.35)
-  - Official Team Colors (PSG Navy Blue vs. Inter Bright Yellow, Fluo Referee)
-  - Kinematic Ball Tracker with Spatial Distance Gating (prevents false jumps to penalty spot)
-  - Physics-based Outlier Rejection & Smooth Neon Trajectory Comet Trail
-  - Live Tactical Radar with Planar Homography Projection (Camera -> 2D FIFA Pitch)
-  - Real-time Match Telemetry: Live Ball Speed (km/h) & Tactical Ball Possession
+  - Class-Specific Dual Confidence (Ball: 0.07 for high recall, Players: 0.35)
+  - Official Broadcast Colors (PSG Navy Blue vs. Inter Yellow, Fluo Referee)
+  - High-Visibility Ball Highlight (Red/White Glow on camera and 2D radar)
+  - Anti-Flicker Temporal Memory (prevents ball disappearing during motion blur)
+  - Segmented Comet Trail (no stray lines across the pitch!)
+  - Planar Homography Projection (Camera -> 2D FIFA Pitch)
+  - Live Match Telemetry: Real-time Ball Speed (km/h) & Tactical Ball Possession
   - Spatial Occupancy Heatmap (Gaussian KDE)
 """
 
@@ -36,8 +37,8 @@ CLASS_CONFIG = {
         "name": "Ball",
         "color_fill": (255, 255, 255),    # Zuiver wit
         "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.12,                     # Hoge bal-recall threshold
-        "radius": 8
+        "conf": 0.07,                     # Gevoelige threshold voor maximale bal-detectie!
+        "radius": 9
     },
     1: {
         "name": "PSG (Team A)",
@@ -97,145 +98,8 @@ def transform_points(points, H, pitch_w=1050, pitch_h=680):
     return mapped
 
 
-class KinematicBallTracker:
-    """
-    Intelligente Ball Tracker met Kinematische Gating en Ruimtelijke Afstandsbegrenzing.
-    Elimineert valse sprongen naar statische grasmarkeringen (penalty spot) en white cleats.
-    """
-    def __init__(self, max_trail_len=25, max_jump_cam=110.0, max_jump_2d=75.0):
-        self.trail = []                 # Historie van (x, y) op 2D pitch
-        self.last_pos_cam = None        # Laatst bevestigde camera positie
-        self.last_pos_2d = None         # Laatst bevestigde 2D veld positie
-        self.frames_lost = 0            # Aantal opeenvolgende frames zonder detectie
-        self.max_trail_len = max_trail_len
-        self.max_jump_cam = max_jump_cam
-        self.max_jump_2d = max_jump_2d
-        self.total_tracked_frames = 0
-        self.speed_history = []
-
-    def update(self, ball_candidates, H, pitch_w, pitch_h):
-        """
-        ball_candidates: list van dicts: [{'box': box, 'conf': score, 'center': (cx, cy)}]
-        """
-        chosen_cam = None
-
-        if not ball_candidates:
-            self.frames_lost += 1
-            if self.frames_lost > 4 and self.trail:
-                self.trail.pop(0)
-            return self.get_display_pos()
-
-        # Als we een recente voorgeschiedenis hebben: ruimtelijke gating toepassen
-        if self.last_pos_cam is not None and self.frames_lost <= 6:
-            valid = []
-            for cand in ball_candidates:
-                cx, cy = cand['center']
-                dist_cam = np.hypot(cx - self.last_pos_cam[0], cy - self.last_pos_cam[1])
-                # Toegestane sprong schaalt licht met gemiste frames (bal in vlucht)
-                allowed_gate = self.max_jump_cam + (self.frames_lost * 50.0)
-                if dist_cam <= allowed_gate:
-                    # Score combinatie van nabijheid en confidence
-                    score = cand['conf'] - (dist_cam / 500.0)
-                    valid.append((score, cand))
-
-            if valid:
-                valid.sort(key=lambda x: x[0], reverse=True)
-                chosen_cam = valid[0][1]['center']
-            else:
-                # Buiten gate: enkel accepteren bij hoge zekere confidence (> 0.40)
-                high_conf = [c for c in ball_candidates if c['conf'] >= 0.40]
-                if high_conf:
-                    high_conf.sort(key=lambda x: x['conf'], reverse=True)
-                    chosen_cam = high_conf[0]['center']
-                else:
-                    self.frames_lost += 1
-                    return self.get_display_pos()
-        else:
-            # Geen voorgeschiedenis: kies kandidaat met hoogste confidence
-            ball_candidates.sort(key=lambda x: x['conf'], reverse=True)
-            chosen_cam = ball_candidates[0]['center']
-
-        if chosen_cam is not None:
-            # Projecteer naar 2D veld
-            mapped = transform_points([chosen_cam], H, pitch_w, pitch_h)
-            if len(mapped) > 0:
-                p2d = (int(mapped[0][0]), int(mapped[0][1]))
-
-                # 2D sprong controle
-                if self.last_pos_2d is not None and self.frames_lost <= 2:
-                    jump_2d = np.hypot(p2d[0] - self.last_pos_2d[0], p2d[1] - self.last_pos_2d[1])
-                    if jump_2d > self.max_jump_2d:
-                        # Onwaarschijnlijke teleportsprong, negeer
-                        self.frames_lost += 1
-                        return self.get_display_pos()
-
-                # Bevestigde update
-                self.last_pos_cam = chosen_cam
-                self.last_pos_2d = p2d
-                self.frames_lost = 0
-                self.total_tracked_frames += 1
-                self.trail.append(p2d)
-                if len(self.trail) > self.max_trail_len:
-                    self.trail.pop(0)
-
-        return self.get_display_pos()
-
-    def get_display_pos(self):
-        # Behoud positie tot 3 frames bij occlusie
-        if self.frames_lost <= 3:
-            return self.last_pos_2d
-        return None
-
-
-def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail):
-    """Tekent de spelers en de bal met professionele radar-styling zonder foutieve lijnen."""
-    radar = pitch_base.copy()
-    pitch_h, pitch_w = radar.shape[:2]
-
-    # 1. Teken balspoor (vloeiende neon komeet trail)
-    if len(ball_trail) > 1:
-        for i in range(1, len(ball_trail)):
-            p_prev = ball_trail[i - 1]
-            p_curr = ball_trail[i]
-            # Max 65 px afstand tussen opeenvolgende frames voor aaneengesloten trail
-            dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
-            if dist <= 65:
-                progress = i / len(ball_trail)
-                thickness = int(1 + progress * 3)
-                color = (0, int(160 + 95 * progress), 255)
-                cv2.line(radar, p_prev, p_curr, color, thickness, cv2.LINE_AA)
-
-    # 2. Teken spelers per categorie
-    for cid in [1, 2, 3, 4]:
-        pts = detected_players.get(cid, [])
-        if not pts:
-            continue
-        mapped = transform_points(pts, H, pitch_w, pitch_h)
-        cfg = CLASS_CONFIG[cid]
-
-        for pt in mapped:
-            px, py = int(pt[0]), int(pt[1])
-            # Schaduw onder speler voor 3D diepte-effect
-            cv2.circle(radar, (px + 2, py + 2), cfg["radius"], (15, 15, 15), -1, cv2.LINE_AA)
-            # Speler dot in officiële teamkleur
-            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_fill"], -1, cv2.LINE_AA)
-            # Rand
-            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_border"], 2, cv2.LINE_AA)
-
-    # 3. Teken de bal op de 2D positie
-    if ball_pos_2d is not None:
-        bx, by = int(ball_pos_2d[0]), int(ball_pos_2d[1])
-        # Buitenste rode glow
-        cv2.circle(radar, (bx, by), 12, (0, 0, 255), 2, cv2.LINE_AA)
-        # Zuiver witte bal
-        cv2.circle(radar, (bx, by), 8, (255, 255, 255), -1, cv2.LINE_AA)
-        cv2.circle(radar, (bx, by), 8, (0, 0, 255), 1, cv2.LINE_AA)
-
-    return radar
-
-
 def draw_styled_camera_box(img, box, cid, score):
-    """Tekent professionele bounding boxes op het camerabeeld."""
+    """Tekent duidelijke bounding boxes op het camerabeeld."""
     cfg = CLASS_CONFIG.get(cid, CLASS_CONFIG[1])
     x1, y1, x2, y2 = [int(v) for v in box]
 
@@ -250,11 +114,61 @@ def draw_styled_camera_box(img, box, cid, score):
     cv2.putText(img, label, (x1 + 3, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.48, text_color, 1, cv2.LINE_AA)
 
 
+def draw_camera_ball_highlight(img, center, score=None):
+    """Tekent een zeer opvallende balmarkering op de cameravideo."""
+    cx, cy = int(center[0]), int(center[1])
+    # Dubbele ring voor maximale zichtbaarheid
+    cv2.circle(img, (cx, cy), 14, (0, 0, 255), 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 8, (255, 255, 255), -1, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 8, (0, 0, 255), 1, cv2.LINE_AA)
+    label = f"BALL {score:.2f}" if score is not None else "BALL"
+    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+
+
+def draw_tactical_radar(pitch_base, detected_players, H, ball_pos_2d, ball_trail):
+    """Tekent de spelers en bal op het 2D veld met gesegmenteerde trail."""
+    radar = pitch_base.copy()
+    pitch_h, pitch_w = radar.shape[:2]
+
+    # 1. Teken balspoor (ALLEEN opeenvolgende punten binnen plausibele afstand)
+    if len(ball_trail) > 1:
+        for i in range(1, len(ball_trail)):
+            p_prev = ball_trail[i - 1]
+            p_curr = ball_trail[i]
+            dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
+            # Als afstand <= 80 px (geen teleportatiesprong over het hele veld)
+            if dist <= 80:
+                progress = i / len(ball_trail)
+                thickness = int(1 + progress * 3)
+                color = (0, int(150 + 105 * progress), 255)
+                cv2.line(radar, p_prev, p_curr, color, thickness, cv2.LINE_AA)
+
+    # 2. Teken spelers per categorie
+    for cid in [1, 2, 3, 4]:
+        pts = detected_players.get(cid, [])
+        if not pts:
+            continue
+        mapped = transform_points(pts, H, pitch_w, pitch_h)
+        cfg = CLASS_CONFIG[cid]
+
+        for pt in mapped:
+            px, py = int(pt[0]), int(pt[1])
+            cv2.circle(radar, (px + 2, py + 2), cfg["radius"], (15, 15, 15), -1, cv2.LINE_AA)
+            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_fill"], -1, cv2.LINE_AA)
+            cv2.circle(radar, (px, py), cfg["radius"], cfg["color_border"], 2, cv2.LINE_AA)
+
+    # 3. Teken de bal (altijd prominent bovenop de spelers)
+    if ball_pos_2d is not None:
+        bx, by = int(ball_pos_2d[0]), int(ball_pos_2d[1])
+        cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.circle(radar, (bx, by), 9, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(radar, (bx, by), 9, (0, 0, 255), 1, cv2.LINE_AA)
+
+    return radar
+
+
 def compute_match_telemetry(ball_pos_2d, last_ball_pos_2d, mapped_a, mapped_b, fps=30.0):
-    """
-    Berekent live balsnelheid (km/h) en tactisch balbezit (dichtstbijzijnde speler).
-    Schaal: 1050 px = 105 meter -> 0.1 meter per pixel.
-    """
+    """Berekent live balsnelheid (km/u) en balbezit."""
     speed_kmh = 0.0
     if ball_pos_2d is not None and last_ball_pos_2d is not None:
         dist_px = np.hypot(ball_pos_2d[0] - last_ball_pos_2d[0], ball_pos_2d[1] - last_ball_pos_2d[1])
@@ -276,7 +190,7 @@ def compute_match_telemetry(ball_pos_2d, last_ball_pos_2d, mapped_a, mapped_b, f
 
 
 def generate_heatmap(all_points, pitch_template, output_path):
-    """Genereert een high-res Kernel Density Estimation (KDE) Heatmap."""
+    """Genereert Kernel Density Estimation (KDE) Heatmap van de veldbezetting."""
     h, w = pitch_template.shape[:2]
     density = np.zeros((h, w), dtype=np.float32)
 
@@ -332,11 +246,15 @@ def main():
 
     print("=" * 65)
     print(f"[SUPER-PIPELINE] Starten op {device} met imgsz={args.imgsz}")
+    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']}")
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
-    tracker = KinematicBallTracker(max_trail_len=25, max_jump_cam=110.0, max_jump_2d=75.0)
-    prev_ball_pos_2d = None
+    ball_trail = []
+    last_known_cam_ball = None
+    last_known_2d_ball = None
+    frames_since_ball = 999
+    total_ball_frames = 0
     all_player_points = []
     frame_idx = 0
 
@@ -345,7 +263,8 @@ def main():
         if not ret:
             break
 
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.10, device=device, verbose=False)[0]
+        # Inferenzieren op lage basis conf=0.06 voor maximale recall
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.06, device=device, verbose=False)[0]
 
         detected_players = {1: [], 2: [], 3: [], 4: []}
         ball_candidates = []
@@ -379,25 +298,70 @@ def main():
                     feet = [(x1 + x2) / 2.0, y2]
                     detected_players[cid].append(feet)
 
-        # Update bal tracker met ruimtelijke gating
-        ball_pos_2d = tracker.update(ball_candidates, H, pitch_img.shape[1], pitch_img.shape[0])
+        # -------------------------------------------------------------
+        # Bal Selectie & Tracking (Robuust & Zichtbaar!)
+        # -------------------------------------------------------------
+        current_ball_cam = None
+        current_ball_score = None
 
-        # Teken bal op camerabeeld als die getrackt wordt
-        if tracker.last_pos_cam is not None and tracker.frames_lost <= 2:
-            bcx, bcy = int(tracker.last_pos_cam[0]), int(tracker.last_pos_cam[1])
-            cv2.circle(cam_display, (bcx, bcy), 11, (0, 0, 255), 2, cv2.LINE_AA)
-            cv2.circle(cam_display, (bcx, bcy), 7, (255, 255, 255), -1, cv2.LINE_AA)
-            cv2.putText(cam_display, "BALL", (bcx - 18, bcy - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+        if ball_candidates:
+            # Als er meerdere kandidaten zijn:
+            # Als we al een bal volgden binnen 150 px: geef voorrang aan de dichtstbijzijnde
+            if last_known_cam_ball is not None and frames_since_ball <= 5:
+                near_candidates = []
+                for cand in ball_candidates:
+                    d = np.hypot(cand['center'][0] - last_known_cam_ball[0], cand['center'][1] - last_known_cam_ball[1])
+                    if d <= 180:
+                        near_candidates.append((d, -cand['conf'], cand))
+                if near_candidates:
+                    near_candidates.sort()
+                    chosen = near_candidates[0][2]
+                    current_ball_cam = chosen['center']
+                    current_ball_score = chosen['conf']
+
+            # Indien geen nabije kandidaat: neem de kandidaat met de hoogste confidence
+            if current_ball_cam is None:
+                ball_candidates.sort(key=lambda x: x['conf'], reverse=True)
+                current_ball_cam = ball_candidates[0]['center']
+                current_ball_score = ball_candidates[0]['conf']
+
+        # Update bal status & projectie
+        current_ball_2d = None
+
+        if current_ball_cam is not None:
+            # Teken direct op de camera
+            draw_camera_ball_highlight(cam_display, current_ball_cam, current_ball_score)
+            
+            # Projecteer naar 2D veld
+            mapped = transform_points([current_ball_cam], H, pitch_img.shape[1], pitch_img.shape[0])
+            if len(mapped) > 0:
+                p2d = (int(mapped[0][0]), int(mapped[0][1]))
+                current_ball_2d = p2d
+                ball_trail.append(p2d)
+                if len(ball_trail) > 25:
+                    ball_trail.pop(0)
+
+                last_known_cam_ball = current_ball_cam
+                last_known_2d_ball = current_ball_2d
+                frames_since_ball = 0
+                total_ball_frames += 1
+        else:
+            frames_since_ball += 1
+            # Anti-flicker: behoud positie tot 3 frames bij korte occlusie
+            if frames_since_ball <= 3 and last_known_2d_ball is not None:
+                current_ball_2d = last_known_2d_ball
+                if last_known_cam_ball is not None:
+                    draw_camera_ball_highlight(cam_display, last_known_cam_ball, score=None)
+            else:
+                if len(ball_trail) > 0:
+                    ball_trail.pop(0)
 
         # Mappings voor balbezit en heatmap
         mapped_a = transform_points(detected_players[1], H, pitch_img.shape[1], pitch_img.shape[0])
         mapped_b = transform_points(detected_players[2], H, pitch_img.shape[1], pitch_img.shape[0])
 
-        # Telemetrie berekenen
-        speed_kmh, possession = compute_match_telemetry(ball_pos_2d, prev_ball_pos_2d, mapped_a, mapped_b, fps)
-        prev_ball_pos_2d = ball_pos_2d
+        speed_kmh, possession = compute_match_telemetry(current_ball_2d, last_known_2d_ball, mapped_a, mapped_b, fps)
 
-        # Verzamel posities voor Heatmap
         for pts_2d in [mapped_a, mapped_b]:
             for p in pts_2d:
                 all_player_points.append(p)
@@ -405,7 +369,7 @@ def main():
         # -------------------------------------------------------------
         # Renderen & Compositing
         # -------------------------------------------------------------
-        minimap_frame = draw_tactical_radar(pitch_img, detected_players, H, ball_pos_2d, tracker.trail)
+        minimap_frame = draw_tactical_radar(pitch_img, detected_players, H, current_ball_2d, ball_trail)
 
         cam_resized = cv2.resize(cam_display, (cam_w, target_h))
         minimap_resized = cv2.resize(minimap_frame, (minimap_w, target_h))
@@ -423,7 +387,7 @@ def main():
         cv2.putText(combined, "INTER (Team B)", (280, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (0, 220, 255), 2, cv2.LINE_AA)
         cv2.putText(combined, f": {len(detected_players[2])}", (465, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (255, 255, 255), 2, cv2.LINE_AA)
 
-        ball_status = "BAL IN SPEL" if tracker.frames_lost <= 2 else "BAL ZOEKEND"
+        ball_status = "BAL IN SPEL" if current_ball_2d is not None else "BAL ZOEKEND"
         ball_status_color = (0, 255, 0) if "IN SPEL" in ball_status else (0, 165, 255)
         cv2.putText(combined, f"STATUS: {ball_status}", (550, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.68, ball_status_color, 2, cv2.LINE_AA)
 
@@ -436,7 +400,7 @@ def main():
         out.write(combined)
         frame_idx += 1
         if frame_idx % 60 == 0 or frame_idx == total_frames:
-            print(f"[SUPER-PIPELINE] Frame {frame_idx}/{total_frames} (Bal getrackt in {tracker.total_tracked_frames} frames)")
+            print(f"[SUPER-PIPELINE] Frame {frame_idx}/{total_frames} (Bal getrackt in {total_ball_frames} frames)")
 
     cap.release()
     out.release()
@@ -447,7 +411,7 @@ def main():
 
     print("=" * 65)
     print(f"[SUCCESS] Super video gereed: {out_video_path}")
-    print(f"[SUMMARY] Totaal frames: {frame_idx} | Bal getrackt: {tracker.total_tracked_frames} frames ({tracker.total_tracked_frames/max(1, frame_idx)*100:.1f}%)")
+    print(f"[SUMMARY] Totaal frames: {frame_idx} | Bal getrackt: {total_ball_frames} frames ({total_ball_frames/max(1, frame_idx)*100:.1f}%)")
     print("=" * 65)
 
 
