@@ -1,0 +1,10 @@
+path: C:\Users\brent\3ACS01\Deep Learning\CV-Challenge\brent\smoke_test
+train: train_ball.txt
+val: val_ball.txt
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee
