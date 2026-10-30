@@ -1,14 +1,25 @@
 """
-Interactive 4-Point Homography Calibration Tool for Dimi.
-Click 4 known field points on the video frame to compute matrix H.
+Interactieve Homografie Calibratie Tool (Point-Pair GUI).
+Auteur: Dmitrij Tchervonisjenko (Team: Git Push and Pray)
 
-Usage:
+Gebruik:
     python dimi/calibrate_homography.py
-Controls:
-    - Left Click: Select point (1 -> 2 -> 3 -> 4)
-    - Key 'r': Reset all points
-    - Key 's': Save calibration and compute matrix H
-    - Key 'q' or 'ESC': Quit without saving
+
+Instructies:
+    1. Klik op een bekend punt op het CAMERABEELD (links) -> bijv. middellijn, stip, doelpaal, 16m-hoek.
+    2. Klik op het CORRESPONDERENDE punt op het 2D VELD (rechts).
+    3. Herhaal dit voor zoveel punten als je wilt (minimaal 4, aanbevolen: 6 tot 12 punten).
+    4. Zodra je >= 4 punten hebt, toont de tool LIVE de geprojecteerde veldlijnen over het gras!
+    5. Druk op 's' om op te slaan in dimi/homography_config.json.
+
+Toetsen:
+    - Linker Muisklik : Punt aanduiden (eerst links op camera, dan rechts op veld)
+    - 'z'              : Laatste punt ongedaan maken (Undo)
+    - 'r'              : Alle punten wissen (Reset)
+    - 'f'              : 30 frames vooruit in video (voor een ander frame)
+    - 'b'              : 30 frames achteruit in video
+    - 's'              : Opslaan naar homography_config.json
+    - 'q' of ESC       : Afsluiten
 """
 
 import os
@@ -21,149 +32,316 @@ DIMI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DIMI_DIR.parent
 VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "CV-video.mp4"
 PITCH_IMG_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch.png"
-PITCH_JSON_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch_keypoints.json"
 CONFIG_OUTPUT = DIMI_DIR / "homography_config.json"
 
-# Standaard veld-bestemmingen op de 2D kaart (1050 x 680 px FIFA template)
-# Breedte = 1050, Hoogte = 680
-# 16m lijn links = x=178, y_top=149, y_bot=530; Middenlijn = x=525, y_top=20, y_bot=660
-# Penaltystip links = [125, 340]; Middenstip = [525, 340]
-DEFAULT_TARGET_POINTS = [
-    {"name": "16m lijn linksboven", "coord_2d": [178, 149]},
-    {"name": "16m lijn linksonder", "coord_2d": [178, 530]},
-    {"name": "Middellijn boven",     "coord_2d": [525, 20]},
-    {"name": "Middellijn onder",     "coord_2d": [525, 660]},
-]
+# Doelresoluties van de bronbestanden
+CAM_ORIG_W = 1920
+CAM_ORIG_H = 1080
+PITCH_ORIG_W = 1050
+PITCH_ORIG_H = 680
 
-clicked_points = []
-preview_img = None
-original_img = None
+# Weergavehoogte in venster
+DISP_H = 600
+CAM_DISP_W = int(CAM_ORIG_W * (DISP_H / CAM_ORIG_H))      # ~1066
+PITCH_DISP_W = int(PITCH_ORIG_W * (DISP_H / PITCH_ORIG_H)) # ~926
+TOTAL_W = CAM_DISP_W + PITCH_DISP_W
+
+# Globale toestand
+cap = None
+current_frame_idx = 0
+cam_frame_orig = None
+pitch_orig = None
+
+# Geklikte paren in originele resoluties:
+# cam_points: [(x_cam, y_cam), ...] (in 1920x1080)
+# pitch_points: [(x_pitch, y_pitch), ...] (in 1050x680)
+cam_points = []
+pitch_points = []
+pending_cam_pt = None  # Wacht op bijbehorend klik op het 2D veld
+
+window_name = "Homografie Calibratie Tool (Team: Git Push and Pray)"
+
+
+def load_frame(idx):
+    global cap, cam_frame_orig, current_frame_idx
+    if cap is None:
+        cap = cv2.VideoCapture(str(VIDEO_PATH))
+    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+    ret, frame = cap.read()
+    if ret:
+        cam_frame_orig = frame
+        current_frame_idx = idx
+    return ret
+
 
 def mouse_callback(event, x, y, flags, param):
-    global clicked_points, preview_img, original_img
+    global pending_cam_pt, cam_points, pitch_points
+
     if event == cv2.EVENT_LBUTTONDOWN:
-        if len(clicked_points) < 4:
-            clicked_points.append([float(x), float(y)])
-            redraw()
+        if x < CAM_DISP_W:
+            # Klik op Camera (links)
+            orig_x = float(x) * (CAM_ORIG_W / CAM_DISP_W)
+            orig_y = float(y) * (CAM_ORIG_H / DISP_H)
+            pending_cam_pt = (orig_x, orig_y)
+            print(f"[KLIK CAMERA] Punt {len(cam_points)+1}: Cam=({orig_x:.1f}, {orig_y:.1f}) -> Klik nu op het 2D veld (rechts)!")
+        else:
+            # Klik op 2D Veld (rechts)
+            if pending_cam_pt is not None:
+                pitch_x = float(x - CAM_DISP_W) * (PITCH_ORIG_W / PITCH_DISP_W)
+                pitch_y = float(y) * (PITCH_ORIG_H / DISP_H)
+                cam_points.append(pending_cam_pt)
+                pitch_points.append((pitch_x, pitch_y))
+                pending_cam_pt = None
+                pair_idx = len(cam_points)
+                print(f"[KLIK VELD] Punt {pair_idx}: Pitch=({pitch_x:.1f}, {pitch_y:.1f}) | Paar {pair_idx} compleet!")
+                if len(cam_points) >= 4:
+                    eval_current_homography()
+            else:
+                print("[WAARSCHUWING] Klik eerst op een punt in het camerabeeld (links) voordat je op het veld klikt!")
 
-def redraw():
-    global preview_img, original_img, clicked_points
-    preview_img = original_img.copy()
 
-    # Teken hulplijnen en punten
-    colors = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255)]
-    
-    for idx, pt in enumerate(clicked_points):
-        pt_int = (int(pt[0]), int(pt[1]))
-        color = colors[idx]
-        target_name = DEFAULT_TARGET_POINTS[idx]["name"]
+def eval_current_homography():
+    if len(cam_points) < 4:
+        return None
+    pts_cam = np.array(cam_points, dtype=np.float32)
+    pts_pitch = np.array(pitch_points, dtype=np.float32)
+    H, _ = cv2.findHomography(pts_cam, pts_pitch, 0)
+    if H is not None:
+        pts_h = np.hstack([pts_cam, np.ones((len(pts_cam), 1))])
+        proj = (H @ pts_h.T).T
+        proj = proj[:, :2] / proj[:, 2:3]
+        errors = np.linalg.norm(proj - pts_pitch, axis=1)
+        mean_err = np.mean(errors)
+        print(f"[HOMOGRAFIE] {len(cam_points)} paren actief | Gemiddelde projectiefout: {mean_err:.2f} pixels")
+        return H
+    return None
 
-        # Teken cirkel en dradenkruis
-        cv2.circle(preview_img, pt_int, 7, color, -1)
-        cv2.circle(preview_img, pt_int, 14, color, 2)
-        cv2.line(preview_img, (pt_int[0] - 20, pt_int[1]), (pt_int[0] + 20, pt_int[1]), color, 1)
-        cv2.line(preview_img, (pt_int[0], pt_int[1] - 20), (pt_int[0], pt_int[1] + 20), color, 1)
 
-        # Labeltekst
-        text = f"P{idx+1}: {target_name} ({pt_int[0]}, {pt_int[1]})"
-        cv2.putText(preview_img, text, (pt_int[0] + 15, pt_int[1] - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
-        cv2.putText(preview_img, text, (pt_int[0] + 15, pt_int[1] - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+def render_display():
+    global cam_frame_orig, pitch_orig, pending_cam_pt, cam_points, pitch_points
 
-    # Als 4 punten gekozen zijn, verbind ze met een polygoon
-    if len(clicked_points) == 4:
-        poly_pts = np.array(clicked_points, np.int32).reshape((-1, 1, 2))
-        cv2.polylines(preview_img, [poly_pts], isClosed=True, color=(0, 255, 0), thickness=2)
-        status_text = "[KLAAR] 4 punten aangeduid! Druk op 's' om op te slaan, of 'r' om te resetten."
-        cv2.putText(preview_img, status_text, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+    cam_vis = cam_frame_orig.copy()
+    pitch_vis = pitch_orig.copy()
+
+    # Bereken live homografie en projecteer veldlijnen als >= 4 punten
+    H = None
+    if len(cam_points) >= 4:
+        pts_cam = np.array(cam_points, dtype=np.float32)
+        pts_pitch = np.array(pitch_points, dtype=np.float32)
+        H, _ = cv2.findHomography(pts_cam, pts_pitch, 0)
+        if H is not None:
+            try:
+                H_inv = np.linalg.inv(H)
+                # Teken belangrijke veldlijnen over de camera in cyaan/groen
+                lines = [
+                    ([525, 20], [525, 658], (0, 255, 0)),        # Middellijn
+                    ([20, 20], [1030, 20], (255, 255, 0)),       # Bovenste zijlijn
+                    ([20, 658], [1030, 658], (255, 255, 0)),     # Onderste zijlijn
+                    ([1030, 20], [1030, 658], (0, 165, 255)),    # Rechter doellijn
+                    ([872, 150], [1030, 150], (0, 255, 255)),    # 16m boven
+                    ([872, 529], [1030, 529], (0, 255, 255)),    # 16m onder
+                    ([872, 150], [872, 529], (0, 255, 255)),     # 16m front
+                    ([978, 254], [1030, 254], (0, 200, 255)),    # 5m boven
+                    ([978, 426], [1030, 426], (0, 200, 255)),    # 5m onder
+                    ([978, 254], [978, 426], (0, 200, 255)),     # 5m front
+                ]
+                for p1, p2, col in lines:
+                    xs = np.linspace(p1[0], p2[0], 25)
+                    ys = np.linspace(p1[1], p2[1], 25)
+                    pts = np.stack([xs, ys, np.ones_like(xs)], axis=0)
+                    proj_cam = H_inv @ pts
+                    proj_cam /= proj_cam[2:3, :]
+                    pts_draw = np.int32(proj_cam[:2, :].T)
+                    # Filter redelijke coördinaten
+                    valid = (pts_draw[:, 0] >= -200) & (pts_draw[:, 0] <= 2120) & (pts_draw[:, 1] >= -200) & (pts_draw[:, 1] <= 1280)
+                    if np.sum(valid) > 2:
+                        cv2.polylines(cam_vis, [pts_draw[valid]], isClosed=False, color=col, thickness=2, lineType=cv2.LINE_AA)
+            except Exception:
+                pass
+
+    # Teken geklikte paren
+    colors = [
+        (0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255),
+        (255, 0, 255), (255, 255, 0), (0, 165, 255), (128, 0, 255),
+        (255, 128, 0), (0, 255, 128), (255, 0, 128), (128, 255, 0),
+        (0, 128, 255), (128, 0, 128), (0, 128, 128), (255, 255, 255)
+    ]
+
+    for idx, (c_pt, p_pt) in enumerate(zip(cam_points, pitch_points)):
+        col = colors[idx % len(colors)]
+        cx, cy = int(round(c_pt[0])), int(round(c_pt[1]))
+        px, py = int(round(p_pt[0])), int(round(p_pt[1]))
+
+        # Op camera
+        cv2.circle(cam_vis, (cx, cy), 7, col, -1, cv2.LINE_AA)
+        cv2.circle(cam_vis, (cx, cy), 13, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(cam_vis, f"P{idx+1}", (cx + 10, cy - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(cam_vis, f"P{idx+1}", (cx + 10, cy - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, col, 2, cv2.LINE_AA)
+
+        # Op veld
+        cv2.circle(pitch_vis, (px, py), 7, col, -1, cv2.LINE_AA)
+        cv2.circle(pitch_vis, (px, py), 13, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(pitch_vis, f"P{idx+1}", (px + 10, py - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(pitch_vis, f"P{idx+1}", (px + 10, py - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65, col, 2, cv2.LINE_AA)
+
+    # Als er een punt op camera staat te wachten op het veld-punt:
+    if pending_cam_pt is not None:
+        cx, cy = int(round(pending_cam_pt[0])), int(round(pending_cam_pt[1]))
+        cv2.circle(cam_vis, (cx, cy), 9, (0, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(cam_vis, (cx, cy), 16, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.putText(cam_vis, f"P{len(cam_points)+1}?", (cx + 12, cy - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 255), 2, cv2.LINE_AA)
+
+    # Schaal naar venstergrootte
+    cam_disp = cv2.resize(cam_vis, (CAM_DISP_W, DISP_H))
+    pitch_disp = cv2.resize(pitch_vis, (PITCH_DISP_W, DISP_H))
+
+    combined = np.hstack((cam_disp, pitch_disp))
+
+    # Bovenste instructiebalk
+    bar = np.zeros((65, TOTAL_W, 3), dtype=np.uint8)
+    status_text = f"Punten aangeduid: {len(cam_points)} paren | Frame: {current_frame_idx}"
+    if pending_cam_pt is not None:
+        status_text += f" | >> KLIK NU OP HET 2D VELD (RECHTS) VOOR PUNT P{len(cam_points)+1} <<"
+        bar_color = (0, 100, 200)
+    elif len(cam_points) < 4:
+        status_text += f" | Klik op een punt in het camerabeeld (links) [nog {4 - len(cam_points)} nodig]"
+        bar_color = (30, 30, 30)
     else:
-        next_target = DEFAULT_TARGET_POINTS[len(clicked_points)]["name"]
-        status_text = f"Klik op punt P{len(clicked_points)+1}: [{next_target}] (of druk 'r' voor reset)"
-        cv2.putText(preview_img, status_text, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+        status_text += " | >> GEREED! Druk op 's' om op te slaan! (of klik meer punten)"
+        bar_color = (20, 120, 20)
 
-    cv2.imshow("Homografie Calibratie - Dimi", preview_img)
+    cv2.rectangle(bar, (0, 0), (TOTAL_W, 65), bar_color, -1)
+    cv2.putText(bar, status_text, (20, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.68, (255, 255, 255), 2, cv2.LINE_AA)
+    help_keys = "Toetsen: 's'=Opslaan | 'z'=Undo | 'r'=Reset | 'f'=Volgend frame | 'b'=Vorig frame | 'q'=Afsluiten"
+    cv2.putText(bar, help_keys, (20, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 200, 200), 1, cv2.LINE_AA)
+
+    final_gui = np.vstack((bar, combined))
+    return final_gui
+
+
+def save_homography():
+    if len(cam_points) < 4:
+        print(f"[FOUT] Kan niet opslaan: Minimaal 4 paren vereist (huidig aantal: {len(cam_points)})!")
+        return False
+
+    pts_cam = np.array(cam_points, dtype=np.float32)
+    pts_pitch = np.array(pitch_points, dtype=np.float32)
+
+    H, status = cv2.findHomography(pts_cam, pts_pitch, 0)
+    if H is None:
+        print("[FOUT] Homografie kon niet berekend worden. Controleer of de punten niet collineair zijn.")
+        return False
+
+    pts_h = np.hstack([pts_cam, np.ones((len(pts_cam), 1))])
+    proj = (H @ pts_h.T).T
+    proj = proj[:, :2] / proj[:, 2:3]
+    errors = np.linalg.norm(proj - pts_pitch, axis=1)
+
+    labels = [f"P{i+1}: Cam ({c[0]:.1f}, {c[1]:.1f}) -> Pitch ({p[0]:.1f}, {p[1]:.1f})" for i, (c, p) in enumerate(zip(cam_points, pitch_points))]
+
+    config_data = {
+        "description": f"Zelf Geijkte Homografie ({len(cam_points)} punten) door Dmitrij",
+        "num_points": len(cam_points),
+        "mean_reprojection_error_px": float(np.mean(errors)),
+        "camera_points": cam_points,
+        "minimap_points": pitch_points,
+        "point_labels": labels,
+        "homography_matrix": H.tolist()
+    }
+
+    with open(CONFIG_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(config_data, f, indent=4)
+
+    print("=" * 65)
+    print(f"🎉 SUCCESVOL OPGESLAGEN!")
+    print(f"Locatie: {CONFIG_OUTPUT}")
+    print(f"Aantal referentieparen: {len(cam_points)}")
+    print(f"Gemiddelde projectiefout: {np.mean(errors):.2f} pixels")
+    print(f"Matrix H:\n{H}")
+    print("=" * 65)
+    print("Je kunt nu direct de videopipeline draaien:")
+    print("    python dimi/minimap_pipeline.py")
+    print("=" * 65)
+    return True
 
 
 def main():
-    global original_img, preview_img, clicked_points
+    global pitch_orig, cam_points, pitch_points
 
-    cap = cv2.VideoCapture(str(VIDEO_PATH))
-    ret, frame = cap.read()
-    cap.release()
-
-    if not ret or frame is None:
-        print(f"[FOUT] Kon video niet openen: {VIDEO_PATH}")
+    if not VIDEO_PATH.exists():
+        print(f"[FOUT] Video niet gevonden in: {VIDEO_PATH}")
         return
 
-    original_img = frame
-    preview_img = frame.copy()
+    pitch_orig = cv2.imread(str(PITCH_IMG_PATH))
+    if pitch_orig is None:
+        print(f"[FOUT] Veld sjabloon niet gevonden in: {PITCH_IMG_PATH}")
+        return
 
-    # Als er al een bestaande configuratie is, laad die in als start
+    load_frame(0)
+
+    # Als er al een configuratie bestaat, vraag of de gebruiker die wil inladen als startpunt
     if CONFIG_OUTPUT.exists():
         try:
-            with open(CONFIG_OUTPUT, "r") as f:
+            with open(CONFIG_OUTPUT, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-                clicked_points = saved.get("camera_points", [])
-                print(f"[INFO] Bestaande {len(clicked_points)} punten geladen uit {CONFIG_OUTPUT}")
+                saved_cam = saved.get("camera_points", [])
+                saved_pitch = saved.get("minimap_points", [])
+                if len(saved_cam) >= 4 and len(saved_cam) == len(saved_pitch):
+                    cam_points = [tuple(p) for p in saved_cam]
+                    pitch_points = [tuple(p) for p in saved_pitch]
+                    print(f"[INFO] Bestaande {len(cam_points)} punten geladen als startpunt.")
+                    print("       Druk op 'r' om blanco opnieuw te beginnen, of 'z' om punten te wissen.")
         except Exception:
             pass
 
-    cv2.namedWindow("Homografie Calibratie - Dimi", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Homografie Calibratie - Dimi", 1280, 720)
-    cv2.setMouseCallback("Homografie Calibratie - Dimi", mouse_callback)
-
-    redraw()
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, 1600, 750)
+    cv2.setMouseCallback(window_name, mouse_callback)
 
     print("=" * 65)
-    print("🎯 HOMOGRAFIE CALIBRATIE TOOL")
+    print("⚽ INTERACTIEVE HOMOGRAFIE CALIBRATIE TOOL")
     print("=" * 65)
     print("Instructies:")
-    print("1. Klik achtereenvolgens op de 4 bekende veldpunten:")
-    for i, t in enumerate(DEFAULT_TARGET_POINTS):
-        print(f"   P{i+1}: {t['name']}")
-    print("2. Druk op de toets 's' om de Homografie Matrix H op te slaan.")
-    print("3. Druk op 'r' om opnieuw te beginnen.")
-    print("4. Druk op 'q' of ESC om af te sluiten.")
+    print("1. Klik op een punt in het CAMERABEELD (links).")
+    print("2. Klik op hetzelfde punt op het 2D VELD (rechts).")
+    print("3. Herhaal voor minimaal 4 punten (bijv. middellijn, middenstip, doellijn, penaltystip).")
+    print("4. Druk op 's' om de nieuwe homografie op te slaan!")
     print("=" * 65)
 
     while True:
-        key = cv2.waitKey(20) & 0xFF
-        if key == ord('q') or key == 27:
-            print("[INFO] Afgesloten zonder opslaan.")
+        gui = render_display()
+        cv2.imshow(window_name, gui)
+        key = cv2.waitKey(25) & 0xFF
+
+        if key == 27 or key == ord('q'):
+            print("[INFO] Afgesloten.")
             break
+        elif key == ord('z'):
+            # Undo
+            if pending_cam_pt is not None:
+                pending_cam_pt = None
+                print("[UNDO] Onvoltooid camera-punt geannuleerd.")
+            elif len(cam_points) > 0:
+                removed_c = cam_points.pop()
+                removed_p = pitch_points.pop()
+                print(f"[UNDO] Laatste paar {len(cam_points)+1} verwijderd.")
         elif key == ord('r'):
-            clicked_points = []
-            print("[RESET] Punten gewist.")
-            redraw()
+            cam_points = []
+            pitch_points = []
+            pending_cam_pt = None
+            print("[RESET] Alle punten gewist. Je kunt nu blanco klikken.")
+        elif key == ord('f'):
+            # Volgend frame (+30)
+            load_frame(current_frame_idx + 30)
+            print(f"[FRAME] Vooruit gesprongen naar frame {current_frame_idx}")
+        elif key == ord('b'):
+            # Vorig frame (-30)
+            load_frame(max(0, current_frame_idx - 30))
+            print(f"[FRAME] Terug gesprongen naar frame {current_frame_idx}")
         elif key == ord('s'):
-            if len(clicked_points) < 4:
-                print(f"[WAARSCHUWING] Slechts {len(clicked_points)}/4 punten geselecteerd. Klik nog {4 - len(clicked_points)} punten!")
-                continue
-
-            pts_src = np.array(clicked_points[:4], dtype=np.float32)
-            pts_dst = np.array([t["coord_2d"] for t in DEFAULT_TARGET_POINTS], dtype=np.float32)
-
-            # Bereken Homografie matrix H
-            H, status = cv2.findHomography(pts_src, pts_dst, cv2.RANSAC)
-
-            config = {
-                "description": "Homografie transformatie van 1080p camerabeeld naar 1050x680 2D FIFA minimap",
-                "camera_points": clicked_points[:4],
-                "minimap_points": [t["coord_2d"] for t in DEFAULT_TARGET_POINTS],
-                "point_labels": [t["name"] for t in DEFAULT_TARGET_POINTS],
-                "homography_matrix": H.tolist() if H is not None else None,
-            }
-
-            with open(CONFIG_OUTPUT, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=4)
-
-            print("=" * 65)
-            print("[SUCCESS] Homografie Matrix H succesvol berekend en opgeslagen!")
-            print(f"[CONFIG] Opgeslagen in: {CONFIG_OUTPUT}")
-            print(f"[MATRIX H]:\n{H}")
-            print("=" * 65)
-            break
+            if save_homography():
+                # Toon succesmelding in console
+                break
 
     cv2.destroyAllWindows()
 
