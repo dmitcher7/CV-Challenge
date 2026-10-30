@@ -14,9 +14,11 @@ VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "CV-video (1).mp4"
 
 # Outputs (all inside brent/smoke_test/)
 DATA_YAML = SMOKE_DIR / "data_smoke.yaml"
+BALL_DATA_YAML = SMOKE_DIR / "data_ball.yaml"
 RUNS_DIR = SMOKE_DIR / "runs"
 RUN_NAME = "smoke"
 BEST_WEIGHTS = RUNS_DIR / RUN_NAME / "weights" / "best.pt"
+BALL_WEIGHTS = RUNS_DIR / "ball" / "weights" / "best.pt"
 EXPERIMENTS_CSV = SMOKE_DIR / "experiments.csv"
 
 

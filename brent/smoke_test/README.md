@@ -23,10 +23,11 @@ so training and inference run on the **GPU**.
 | Step | Command | Output |
 |---|---|---|
 | 1. Environment | `.\.venv\Scripts\python smoke_test\check_env.py` | versions + CUDA/GPU info |
-| 2. Split | `.\.venv\Scripts\python smoke_test\make_split.py` | `train.txt`, `val.txt`, `data_smoke.yaml` |
-| 3. Train | `.\.venv\Scripts\python smoke_test\train_smoke.py` | `runs/smoke/` |
-| 4. Evaluate | `.\.venv\Scripts\python smoke_test\eval_smoke.py` | table + `runs/smoke_val/` + row in `experiments.csv` |
-| 5. Video | `.\.venv\Scripts\python smoke_test\predict_video.py` | `runs/smoke_predict/match.avi` (Windows writes `.avi`) |
+| 2. Split | `.\.venv\Scripts\python smoke_test\make_split.py` | multi-class and ball-specific split files |
+| 3. Multi-class train | `.\.venv\Scripts\python smoke_test\train_smoke.py` | `runs/smoke/` |
+| 4. Ball train | `.\.venv\Scripts\python smoke_test\train_ball.py` | `runs/ball/` |
+| 5. Evaluate | `.\.venv\Scripts\python smoke_test\eval_smoke.py` | table + `runs/smoke_val/` + row in `experiments.csv` |
+| 6. Video | `.\.venv\Scripts\python smoke_test\predict_video.py` | `runs/smoke_predict/CV-video (1).avi` |
 
 `train_smoke.py` accepts `--model --imgsz --epochs --batch --patience --mosaic --close-mosaic`
 (GPU defaults: YOLO26m, 1600/100/2, patience 20, mosaic 0.2, close-mosaic 20; CPU uses 640/10/4).
@@ -40,18 +41,25 @@ be written into `data/dataset_yolo/train/` (we never modify `data/`).
 
 train = frame idx 0–494 · gap = 495–524 (never used) · val = 525–659
 
-Result on the current export:
+Result on the current export for the fully annotated multi-class split:
 
 | class | train | val |
 |---|---:|---:|
-| ball | 42 | 4 |
-| player_A | 469 | 40 |
-| player_B | 468 | 40 |
-| player_B_goal_keeper | 45 | 4 |
-| referee | 174 | 4 |
-| **images** | **47** | **4** |
+| ball | 58 | 14 |
+| player_A | 679 | 313 |
+| player_B | 678 | 310 |
+| player_B_goal_keeper | 66 | 32 |
+| referee | 254 | 37 |
+| **images** | **68** | **32** |
 
-No images without labels, no frames in the gap.
+The ball-specific split additionally includes 17 ball-only partial annotations: 86 train images with
+75 balls, plus the same 32 validation images with 14 balls. These partial annotations are deliberately
+excluded from multi-class training so visible but unlabeled players are not learned as background.
+
+`predict_video.py` combines the multi-class and dedicated ball checkpoints. A single-target
+constant-velocity Kalman filter (the relevant core of SORT) associates ball candidates, smooths their
+location and bridges at most four missed frames. This is preferable to a moving average here because it
+does not lag as much when the ball changes speed.
 
 ## Output files explained
 
