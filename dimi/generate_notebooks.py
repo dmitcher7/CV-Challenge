@@ -251,7 +251,40 @@ Zonder regularisatie kan één dominant neuron ("super-star neuron") alle voorsp
    * **Mosaic:** Voegt 4 verschillende trainingsbeelden samen tot één samengesteld beeld. Hierdoor leert het netwerk objecten herkennen op wisselende schalen en locaties.
    * **Mixup:** Mengt twee beelden lineair met transparantie.
    * **HSV Jitter:** Varieert kleurtoon, verzadiging en helderheid om gras- en belichtingsvariaties op te vangen.
-   * **Belangrijke Best Practice (`close_mosaic=10`):** In de laatste 10 epochs schakelen we Mosaic uit! Dit zorgt ervoor dat het model in de eindfase traint op natuurlijke, onvervormde beelden, wat bounding box jitter drastisch vermindert."""),
+   * **Belangrijke Best Practice (`close_mosaic=10`):** In de laatste 10 epochs schakelen we Mosaic uit! Dit zorgt ervoor dat het model in de eindfase traint op natuurlijke, onvervormde beelden, wat bounding box jitter drastisch vermindert.
+
+### 9.3 Hard Labels vs. Soft Labels & Label Smoothing (Kleine & Wazige Objecten)
+* **Het Probleem met Harde Labels (One-Hot):**
+  Standaard labels stellen de ware klasse op exact $1.0$ en de rest op $0.0$ ($y_{hard} = [1, 0, 0, 0, 0]$). Hierdoor probeert de Cross-Entropy loss de logits naar $\\pm \\infty$ te forceren. Het model wordt **overconfident**: als een bal door bewegingsonscherpte (*motion blur*) of een speler's schoen deels occluded is, klapt de voorspelling direct in naar 0.
+* **De Oplossing: Soft Labels (Label Smoothing):**
+  We mengen het harde doel met een uniforme kansverdeling over alle $K=5$ klassen:
+  $$y_{soft} = (1 - \\epsilon) \\cdot y_{hard} + \\frac{\\epsilon}{K}$$
+  Bij $\\epsilon = 0.10$ wordt het bal-doellabel **$0.92$** en de andere klassen **$0.02$**. Het netwerk leert gekalibreerde kansen (*calibrated probabilities*), wat detectie van deels bedekte ballen drastisch verbetert.
+* **Soft Assignment in YOLO:** De moderne Task-Aligned Assigner berekent reeds continue zachte doelen: $t = s^\\alpha \\cdot \\text{IoU}^\\beta$."""),
+
+    code_cell("""# Demonstratie: Hard Labels vs. Soft Labels (Label Smoothing) in PyTorch
+import torch
+import torch.nn as nn
+
+epsilon = 0.10
+num_classes = 5
+target_class = torch.tensor([0])  # Klasse 0 = 'ball'
+
+criterion_hard = nn.CrossEntropyLoss()
+criterion_soft = nn.CrossEntropyLoss(label_smoothing=epsilon)
+
+# Simuleer twee voorspellingen:
+# 1. Zeker beeld (hoge contrast bal)
+# 2. Wazig / gedeeltelijk occluded beeld (voetbal deels achter een voet)
+logits_sharp = torch.tensor([[8.0, -1.0, -2.0, -1.5, -2.0]])
+logits_blurry = torch.tensor([[1.8, 1.2, 0.4, -0.2, 0.1]])
+
+print("=== Vergelijking Hard vs. Soft Labels Loss ===")
+print(f"1. Scherpe Bal - Hard CE Loss : {criterion_hard(logits_sharp, target_class).item():.4f}")
+print(f"   Scherpe Bal - Soft CE Loss : {criterion_soft(logits_sharp, target_class).item():.4f} (Geregulariseerd)")
+print(f"2. Wazige Bal  - Hard CE Loss : {criterion_hard(logits_blurry, target_class).item():.4f}")
+print(f"   Wazige Bal  - Soft CE Loss : {criterion_soft(logits_blurry, target_class).item():.4f} (Stabielere gradiënt!)")
+"""),
 
     md_cell("""---
 ## 10. Decoder & Upsampling Technieken (Transposed Conv & Checkerboard Artifacts)
@@ -777,8 +810,8 @@ else:
 3. **Automated Analytics:** Volledige integratie van balsnelheid (km/u), team-balbezit en Gaussiaanse KDE veldbezetting heatmaps.""")
 ]
 
-# Build and write notebooks
-NOTEBOOKS_DIR = Path("Final/notebooks")
+# Build and write notebooks in dimi/notebooks
+NOTEBOOKS_DIR = Path("dimi/notebooks")
 NOTEBOOKS_DIR.mkdir(parents=True, exist_ok=True)
 
 nb1_path = NOTEBOOKS_DIR / "01_model_training_and_tuning.ipynb"

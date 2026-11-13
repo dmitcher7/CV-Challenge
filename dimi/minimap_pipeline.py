@@ -14,8 +14,10 @@ Features:
 """
 
 import os
+import sys
 import json
 import argparse
+import subprocess
 from pathlib import Path
 import cv2
 import numpy as np
@@ -739,6 +741,27 @@ def main():
 
     cap.release()
     out.release()
+
+    # Transcode to web-compatible H.264 (yuv420p) so browsers and Streamlit can play it natively
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        temp_h264 = out_video_path.parent / (out_video_path.stem + "_h264.mp4")
+        cmd = [
+            ffmpeg_exe, "-y",
+            "-i", str(out_video_path),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-preset", "fast",
+            "-crf", "22",
+            str(temp_h264)
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0 and temp_h264.exists():
+            os.replace(temp_h264, out_video_path)
+            print("[INFO] Video succesvol geconverteerd naar web-compatibel H.264 formaat voor Streamlit!")
+    except Exception as e:
+        print(f"[WARN] H.264 transcode overgeslagen: {e}")
 
     heatmap_out = output_dir / "spatial_occupancy_heatmap.png"
     generate_heatmap(all_player_points, pitch_img, heatmap_out)

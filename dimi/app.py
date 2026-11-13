@@ -88,7 +88,10 @@ with tab1:
 
     with col1:
         if VIDEO_RADAR_PATH.exists():
-            st.video(str(VIDEO_RADAR_PATH))
+            with open(VIDEO_RADAR_PATH, "rb") as vf:
+                video_bytes = vf.read()
+            st.video(video_bytes, format="video/mp4")
+            st.caption(f"📁 Geladen van: `{VIDEO_RADAR_PATH.name}` (Web-compatibel H.264 / AAC, {len(video_bytes)/(1024*1024):.1f} MB)")
         else:
             st.warning("De synchrone video is nog niet gegenereerd. Draai eerst: `python dimi/minimap_pipeline.py`")
 
@@ -202,6 +205,29 @@ with tab4:
             * **F1-Score:** Het harmonisch gemiddelde $F_1 = 2 \\cdot \\frac{P \\cdot R}{P + R}$ bestraft modellen die precisie opofferen voor recall of vice versa.
             """
         )
+
+    with st.expander("🏷️ 3b. Hard Labels vs. Soft Labels & Label Smoothing (Kleine & Wazige Objecten)"):
+        st.markdown(
+            r"""
+            * **Hard Labels (One-Hot):** $y_{hard} = [1, 0, 0, 0, 0]$.
+              Dwingt de logits naar $\pm \infty$. Dit leidt tot **overconfidence** en *entropy collapse*: zodra een bal wazig is door een snelle trap (*motion blur*) of voor $50\%$ achter een been verdwijnt, crasht de voorspelde kans naar 0.
+            * **Soft Labels (Label Smoothing):**
+              We mengen het harde doel met een uniforme verdeling over $K=5$ klassen:
+              $$y_{soft} = (1 - \epsilon) \cdot y_{hard} + \frac{\epsilon}{K}$$
+            * **YOLO Task-Aligned Assigner (TAL):**
+              Berekent dynamische zachte labels $t = s^\alpha \cdot \text{IoU}^\beta$ tussen 0 en 1. Hierdoor leert het netwerk gekalibreerde kansen (*calibrated probabilities*) voor de bal bij tackles en occlusies.
+            """
+        )
+        eps_val = st.slider("Experimenteer met Label Smoothing factor (ε):", min_value=0.0, max_value=0.25, value=0.10, step=0.01)
+        k_cls = 5
+        p_target = (1.0 - eps_val) + (eps_val / k_cls)
+        p_other = eps_val / k_cls
+        df_soft = pd.DataFrame({
+            "Klasse": ["ball (Doelklasse)", "player_A", "player_B", "player_B_gk", "referee"],
+            "Hard Label (One-Hot)": [1.0, 0.0, 0.0, 0.0, 0.0],
+            f"Soft Label (ε = {eps_val:.2f})": [round(p_target, 4), round(p_other, 4), round(p_other, 4), round(p_other, 4), round(p_other, 4)]
+        })
+        st.dataframe(df_soft, use_container_width=True)
 
     with st.expander("📈 4. mAP (Mean Average Precision) Deep-Dive [EXAMEN VRAAG]"):
         st.markdown(
