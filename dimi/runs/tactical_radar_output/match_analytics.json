@@ -1,0 +1,60 @@
+{
+    "match_duration_seconds": 22.0,
+    "total_frames_analyzed": 660,
+    "ball_telemetry": {
+        "total_distance_meters": 45.4,
+        "total_distance_km": 0.045,
+        "peak_speed_kmh": 98.7,
+        "average_speed_kmh": 9.9
+    },
+    "possession_share_percent": {
+        "PSG": 27.1,
+        "Inter_Milan": 42.3,
+        "Contested": 30.7
+    },
+    "shot_and_attack_analysis": {
+        "attacking_team": "Paris Saint-Germain (PSG)",
+        "defending_team": "Inter Milan",
+        "target_goal": "Rechterdoel (Inter Milan doelman)",
+        "goal_coordinates_pitch": [
+            1050,
+            340
+        ],
+        "total_shot_attempts": 3,
+        "shots": [
+            {
+                "frame": 337,
+                "timestamp_s": 11.23,
+                "target_goal": "Rechterdoel (Inter Milan)",
+                "speed_kmh": 35.4,
+                "pitch_coord": [
+                    710.4,
+                    567.9
+                ],
+                "distance_to_goal_m": 40.9
+            },
+            {
+                "frame": 503,
+                "timestamp_s": 16.77,
+                "target_goal": "Rechterdoel (Inter Milan)",
+                "speed_kmh": 58.6,
+                "pitch_coord": [
+                    713.4,
+                    305.4
+                ],
+                "distance_to_goal_m": 33.8
+            },
+            {
+                "frame": 551,
+                "timestamp_s": 18.37,
+                "target_goal": "Rechterdoel (Inter Milan)",
+                "speed_kmh": 73.3,
+                "pitch_coord": [
+                    772.6,
+                    379.8
+                ],
+                "distance_to_goal_m": 28.0
+            }
+        ]
+    }
+}

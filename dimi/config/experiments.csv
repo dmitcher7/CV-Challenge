@@ -1,0 +1,2 @@
+run,weights,imgsz,precision,recall,mAP50,mAP50-95,ball_mAP50
+ball_yolo26_1280,best.pt,1280,0.6925,0.6466,0.7227,0.3145,0.0353

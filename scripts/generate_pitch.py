@@ -63,7 +63,7 @@ def draw_tactical_pitch(output_path: str = "data/pitch_template/tactical_pitch.p
     cv2.circle(pitch, (width - 20 - pen_dist, mid_y), 4, white, -1)
 
     cv2.imwrite(output_path, pitch)
-    print(f"✅ 2D veld sjabloon opgeslagen in: {output_path}")
+    print(f"[OK] 2D veld sjabloon opgeslagen in: {output_path}")
 
     # Canonical keypoints voor homography mapping
     keypoints = {
@@ -83,7 +83,7 @@ def draw_tactical_pitch(output_path: str = "data/pitch_template/tactical_pitch.p
     json_path = os.path.splitext(output_path)[0] + "_keypoints.json"
     with open(json_path, "w") as f:
         json.dump(keypoints, f, indent=4)
-    print(f"✅ Canonical keypoints opgeslagen in: {json_path}")
+    print(f"[OK] Canonical keypoints opgeslagen in: {json_path}")
 
 
 if __name__ == "__main__":
