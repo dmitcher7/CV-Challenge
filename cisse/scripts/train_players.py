@@ -1,9 +1,7 @@
 """Train a YOLO player-detection model on the project dataset."""
 
 from pathlib import Path
-
 from ultralytics import YOLO
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -19,15 +17,26 @@ def main() -> None:
 
     disable_label_cache()
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    model = YOLO("yolo26n.pt")
+    
+    # Load the model
+    model = YOLO("yolo26l.pt")
+    
     model.train(
         data=str(DATA_YAML),
-        epochs=100,
-        imgsz=640,
+        epochs=100,          # Slightly higher epoch count for larger models to converge
+        patience=25,         # Early stopping patience
+        imgsz=960,          # Increased resolution for small object / ball detection (drop to 640 if OOM)
+        batch=2,             # Adjust based on your GPU VRAM (use 4, 8, or 16)
+        cos_lr=True,         # Use cosine learning rate scheduler
+        mosaic=0.0,          # Full mosaic augmentation for multi-object context
+        mixup=0.15,          # Mixup augmentation to blend player shirts and prevent overfitting
+        copy_paste=0.1,      # Copy-paste augmentation to help with occlusions
         project=str(MODEL_DIR),
         name=RUN_NAME,
         exist_ok=True,
-        workers=0,
+        workers=4,
+        cache=True,          # Enable caching for faster training on subsequent runs
+        scale=0.2,            # Scale augmentation to simulate players at different distances
     )
 
     if not BEST_WEIGHTS.is_file():

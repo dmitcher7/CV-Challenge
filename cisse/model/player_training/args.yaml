@@ -1,17 +1,17 @@
 task: detect
 mode: train
-model: yolo26n.pt
+model: yolo26l.pt
 data: C:\school\AI\Deep Learning\ComputerVision\CV-Challenge\data\dataset_yolo\data.yaml
 epochs: 100
 time: null
-patience: 100
-batch: 16
-imgsz: 640
+patience: 25
+batch: 2
+imgsz: 960
 save: true
 save_period: -1
-cache: false
+cache: true
 device: ''
-workers: 0
+workers: 4
 project: C:\school\AI\Deep Learning\ComputerVision\CV-Challenge\cisse\model
 name: player_training
 exist_ok: true
@@ -23,7 +23,7 @@ seed: 0
 deterministic: true
 single_cls: false
 rect: false
-cos_lr: false
+cos_lr: true
 close_mosaic: 10
 resume: false
 amp: true
@@ -96,16 +96,16 @@ hsv_s: 0.7
 hsv_v: 0.4
 degrees: 0.0
 translate: 0.1
-scale: 0.5
+scale: 0.2
 shear: 0.0
 perspective: 0.0
 flipud: 0.0
 fliplr: 0.5
 bgr: 0.0
-mosaic: 1.0
-mixup: 0.0
+mosaic: 0.0
+mixup: 0.15
 cutmix: 0.0
-copy_paste: 0.0
+copy_paste: 0.1
 copy_paste_mode: flip
 auto_augment: randaugment
 erasing: 0.4
