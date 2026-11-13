@@ -448,6 +448,22 @@ $$\\text{TPR} = \\frac{TP}{TP + FN}, \\quad \\text{FPR} = \\frac{FP}{FP + TN}$$
 4. **De Enige Juiste Metric: De Precision-Recall (PR) Curve:**
    De PR-curve bevat **géén $TN$ in de formule**. Hij evalueert uitsluitend $TP$, $FP$ en $FN$, waardoor hij de zeldzame klasse (zoals een kleine voetbal) eerlijk en genadeloos beoordeelt."""),
 
+    code_cell("""# Visualiseer de Precision-Recall (PR) Curve Vergelijking (Voor vs. Na Tuning)
+from IPython.display import Image, display
+from pathlib import Path
+
+pr_compare = Path("dimi/runs/pr_curve_comparison_before_after.png")
+if not pr_compare.exists():
+    pr_compare = Path("../runs/pr_curve_comparison_before_after.png")
+if not pr_compare.exists():
+    pr_compare = Path("runs/pr_curve_comparison_before_after.png")
+
+if pr_compare.exists():
+    display(Image(filename=str(pr_compare), width=900))
+else:
+    print("PR vergelijkingsbestand niet gevonden.")
+"""),
+
     md_cell("""---
 ## 3. mAP Ontrafeld ("Mean of Averages") [EXAMEN VRAAG]
 

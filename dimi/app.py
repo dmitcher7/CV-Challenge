@@ -146,6 +146,11 @@ with tab3:
         if chart_img.exists():
             st.image(str(chart_img), caption="Systematische Vergelijking van 18 Threshold Configuraties (mAP, PR Trade-Off, Bal Gevoeligheid & IoU NMS)", use_container_width=True)
 
+        st.subheader("Vergelijking PR-Curven: Origineel vs. Na Finetuning & Tuning")
+        pr_compare_path = RUNS_DIR / "pr_curve_comparison_before_after.png"
+        if pr_compare_path.exists():
+            st.image(str(pr_compare_path), caption="Directe Vergelijking: Originele Baseline (mAP@50 = 0.629) vs. Na Finetuning & Parameter Tuning (mAP@50 = 0.729, +10.0% winst)", use_container_width=True)
+
         st.subheader("Officiële Validatiecurven: PR-Curve, F1-Curve & Verwarringsmatrix")
         st.write(
             "Bij objectdetectie gebruiken we conform de opdracht uitsluitend de **Precision-Recall Curve (PR-Curve)** "
