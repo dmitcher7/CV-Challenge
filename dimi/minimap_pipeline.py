@@ -237,17 +237,17 @@ class BallSortTracker:
     SORT (Simple Online and Realtime Tracking) met Time Series Prediction
     en Moving Average Smoothing voor de voetbal.
     """
-    def __init__(self, alpha=0.75, max_missing=6):
+    def __init__(self, alpha=0.70, max_missing=20):
         self.state = None  # [x, y, vx, vy]
         self.P = np.eye(4, dtype=np.float32) * 40.0
         # Time Series constant-velocity state transition matrix F met wrijvingsdemping
         self.F = np.array([
             [1, 0, 1, 0],
             [0, 1, 0, 1],
-            [0, 0, 0.94, 0],
-            [0, 0, 0, 0.94]
+            [0, 0, 0.95, 0],
+            [0, 0, 0, 0.95]
         ], dtype=np.float32)
-        self.Q = np.diag([2.0, 2.0, 8.0, 8.0]).astype(np.float32)
+        self.Q = np.diag([2.0, 2.0, 6.0, 6.0]).astype(np.float32)
         self.H_k = np.array([
             [1, 0, 0, 0],
             [0, 1, 0, 0]
@@ -301,22 +301,33 @@ class BallSortTracker:
 def is_penalty_spot_or_marking(center_cam, H):
     """
     Sluit de penaltystip en veldkrijtmarkeringen 100% uit.
-    Controleert in de fysieke invariante 2D pitchruimte (onafhankelijk van panning of zoom).
+    Controleert zowel in de fysieke invariante 2D pitchruimte als in cameraruimte.
     """
     cx, cy = center_cam
 
-    # Invariante 2D Pitch-ruimte transformatie
+    # 1. Invariante 2D Pitch-ruimte transformatie
     pt = np.array([[[cx, cy]]], dtype=np.float32)
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
 
-    # 1. Rechter strafschopstip (exact X=925, Y=339, radius 18px)
-    if 907 <= X <= 943 and 322 <= Y <= 356:
+    # Rechter strafschopstip (exact X=925, Y=340, ruime straal 55px)
+    dist_pen_pitch = np.hypot(X - 925.0, Y - 340.0)
+    if dist_pen_pitch <= 55.0:
         return True
 
-    # 2. Middenstip (exact X=525, Y=339, radius 18px)
-    if 507 <= X <= 543 and 322 <= Y <= 356:
+    # Middenstip (exact X=525, Y=340, straal 45px)
+    dist_mid_pitch = np.hypot(X - 525.0, Y - 340.0)
+    if dist_mid_pitch <= 45.0:
         return True
+
+    # 2. Camera-ruimte projectie van de penaltystip
+    try:
+        H_inv = np.linalg.inv(H)
+        pen_cam = cv2.perspectiveTransform(np.array([[[925.0, 340.0]]], dtype=np.float32), H_inv)[0][0]
+        if np.hypot(cx - pen_cam[0], cy - pen_cam[1]) <= 50.0:
+            return True
+    except Exception:
+        pass
 
     return False
 
@@ -348,14 +359,15 @@ def draw_styled_camera_box(img, box, cid, score):
     cv2.putText(img, label, (x1 + 3, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.48, text_color, 1, cv2.LINE_AA)
 
 
-def draw_camera_ball_highlight(img, center, score=None):
+def draw_camera_ball_highlight(img, center, score=None, is_pred=False):
     """Tekent een opvallende balmarkering op het camerabeeld."""
     cx, cy = int(center[0]), int(center[1])
-    cv2.circle(img, (cx, cy), 13, (0, 0, 255), 2, cv2.LINE_AA)
+    color_ring = (0, 165, 255) if is_pred else (0, 0, 255)
+    cv2.circle(img, (cx, cy), 13, color_ring, 2, cv2.LINE_AA)
     cv2.circle(img, (cx, cy), 8, (255, 255, 255), -1, cv2.LINE_AA)
-    cv2.circle(img, (cx, cy), 8, (0, 0, 255), 1, cv2.LINE_AA)
-    label = f"BALL {score:.2f}" if score is not None else "BALL"
-    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 8, color_ring, 1, cv2.LINE_AA)
+    label = "BALL (PRED)" if is_pred else (f"BALL {score:.2f}" if score is not None else "BALL")
+    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_ring, 2, cv2.LINE_AA)
 
 
 def draw_tactical_player(radar, pt, cid):
@@ -404,12 +416,15 @@ def draw_tactical_radar(pitch_base, active_tracks, ball_pos_2d, ball_trail):
             if trk["team"] == draw_cid:
                 draw_tactical_player(radar, trk["pos"], draw_cid)
 
-    # 3. Teken de bal (prominent en oplichtend)
+    # 3. Teken de bal (prominent en oplichtend) - NOOIT op de penaltystip of middenstip
     if ball_pos_2d is not None:
         bx, by = int(round(ball_pos_2d[0])), int(round(ball_pos_2d[1]))
-        cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
-        cv2.circle(radar, (bx, by), 9, (255, 255, 255), -1, cv2.LINE_AA)
-        cv2.circle(radar, (bx, by), 4, (0, 0, 255), -1, cv2.LINE_AA)
+        dist_pen = np.hypot(bx - 925.0, by - 340.0)
+        dist_mid = np.hypot(bx - 525.0, by - 340.0)
+        if dist_pen > 45.0 and dist_mid > 40.0:
+            cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.circle(radar, (bx, by), 9, (255, 255, 255), -1, cv2.LINE_AA)
+            cv2.circle(radar, (bx, by), 4, (0, 0, 255), -1, cv2.LINE_AA)
 
     return radar
 
@@ -497,7 +512,7 @@ def main():
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
-    tracker = BallSortTracker(alpha=0.75, max_missing=6)
+    tracker = BallSortTracker(alpha=0.70, max_missing=20)
     camera_tracker = CameraTracker(max_corners=500)
     player_tracker = TeamPlayerTracker(max_age=6, match_dist=38.0, ema_alpha=0.65)
     ball_trail = []
@@ -551,8 +566,8 @@ def main():
                     bw = x2 - x1
                     bh = y2 - y1
                     aspect = bw / max(1.0, bh)
-                    # Filter 2: Sferische vormcontrole
-                    if aspect < 0.60 or aspect > 1.65:
+                    # Filter 2: Sferische vormcontrole & maximale balgrootte
+                    if aspect < 0.50 or aspect > 1.95 or bw > 35 or bh > 35:
                         continue
 
                     ball_candidates.append({
@@ -605,9 +620,9 @@ def main():
             gated = []
             for cand in ball_candidates:
                 d = np.linalg.norm(cand['center'] - pred_pos)
-                max_d = 70.0 + tracker.missing_frames * 15.0
+                max_d = 85.0 + tracker.missing_frames * 18.0
                 if d <= max_d:
-                    cost = d - cand['conf'] * 25.0
+                    cost = d - cand['conf'] * 30.0
                     gated.append((cost, cand))
             if gated:
                 gated.sort(key=lambda x: x[0])
@@ -616,11 +631,13 @@ def main():
         elif ball_candidates:
             reacq = []
             for cand in ball_candidates:
+                if is_penalty_spot_or_marking(cand['center'], Ht):
+                    continue
                 if is_foot_region(cand['center'], player_boxes):
-                    if cand['conf'] >= 0.40:
+                    if cand['conf'] >= 0.35:
                         reacq.append(cand)
                 else:
-                    if cand['conf'] >= 0.16:
+                    if cand['conf'] >= 0.12:
                         reacq.append(cand)
             if reacq:
                 reacq.sort(key=lambda x: -x['conf'])
@@ -631,23 +648,33 @@ def main():
             tracker.update(chosen_measurement)
 
         current_ball_cam = tracker.get_pos()
+
+        # Harde failsafe: als getrackte bal ooit op penaltystip belandt -> reset tracker direct!
+        if current_ball_cam is not None and is_penalty_spot_or_marking(current_ball_cam, Ht):
+            tracker.state = None
+            tracker.ema_pos = None
+            current_ball_cam = None
+
         current_ball_2d = None
         prev_ball_2d = last_known_2d_ball
 
         if current_ball_cam is not None:
             total_ball_frames += 1
-            draw_camera_ball_highlight(cam_display, current_ball_cam, chosen_conf)
+            is_pred = tracker.missing_frames > 0
+            draw_camera_ball_highlight(cam_display, current_ball_cam, chosen_conf, is_pred)
             mapped = transform_points([current_ball_cam], Ht, pitch_img.shape[1], pitch_img.shape[0])
             if len(mapped) > 0:
                 p2d = (int(round(mapped[0][0])), int(round(mapped[0][1])))
-                current_ball_2d = p2d
-                if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 65:
-                    ball_trail.append(p2d)
-                else:
-                    ball_trail = [p2d]
-                if len(ball_trail) > 25:
-                    ball_trail.pop(0)
-                last_known_2d_ball = current_ball_2d
+                # Veiligheid: teken NOOIT op de penaltystip
+                if np.hypot(p2d[0] - 925.0, p2d[1] - 340.0) > 45.0:
+                    current_ball_2d = p2d
+                    if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 95:
+                        ball_trail.append(p2d)
+                    else:
+                        ball_trail = [p2d]
+                    if len(ball_trail) > 30:
+                        ball_trail.pop(0)
+                    last_known_2d_ball = current_ball_2d
         else:
             last_known_2d_ball = None
             if len(ball_trail) > 0:
