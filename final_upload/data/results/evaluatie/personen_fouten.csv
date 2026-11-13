@@ -1,0 +1,19 @@
+sessie,frame,soort,rol,oorzaak,categorie
+lichaam,180,FN,R,"gezien (zekerheid 0.69), maar de voeten liggen buiten veld + 3 m marge (y = 71.0 m): bewust weggefilterd","gezien (zekerheid 0.69), maar de voeten"
+lichaam,210,FN,R,"gezien (zekerheid 0.63), maar de voeten liggen buiten veld + 3 m marge (y = 71.7 m): bewust weggefilterd","gezien (zekerheid 0.63), maar de voeten"
+lichaam,240,FN,R,"gezien (zekerheid 0.80), maar de voeten liggen buiten veld + 3 m marge (y = 71.0 m): bewust weggefilterd","gezien (zekerheid 0.80), maar de voeten"
+lichaam,630,FN,A,"gezien (zekerheid 0.50), maar samengevoegd met een overlappende box (duplicaatfilter)","gezien (zekerheid 0.50), maar samengevoegd"
+lichaam,30,FP,B,"naast een klik (0.4 boxhoogte): overlappende spelers, niet te beslissen",naast een klik
+lichaam,30,FP,A,dubbele box op dezelfde speler (IoU 0.59 met een andere box),dubbele box
+lichaam,60,FP,A,dubbele box op dezelfde speler (IoU 0.60 met een andere box),dubbele box
+lichaam,180,FP,B,"naast een klik (0.7 boxhoogte): overlappende spelers, niet te beslissen",naast een klik
+lichaam,210,FP,A,persoon zonder klik (dichtstbijzijnde klik 3 boxhoogtes ver): niet gelabeld,persoon zonder klik
+lichaam,240,FP,A,persoon zonder klik (dichtstbijzijnde klik 3 boxhoogtes ver): niet gelabeld,persoon zonder klik
+lichaam,360,FP,A,"naast een klik (0.8 boxhoogte): overlappende spelers, niet te beslissen",naast een klik
+lichaam,510,FP,B,"naast een klik (0.3 boxhoogte): overlappende spelers, niet te beslissen",naast een klik
+lichaam,570,FP,B,dubbele box op dezelfde speler (IoU 0.52 met een andere box),dubbele box
+lichaam,600,FP,K,dubbele box op dezelfde speler (IoU 0.60 met een andere box),dubbele box
+lichaam,630,FP,R,persoon zonder klik (dichtstbijzijnde klik 8 boxhoogtes ver): niet gelabeld,persoon zonder klik
+voet,120,FP,B,"naast een klik (1.0 boxhoogte): overlappende spelers, niet te beslissen",naast een klik
+voet,480,FP,R,persoon zonder klik (dichtstbijzijnde klik 9 boxhoogtes ver): niet gelabeld,persoon zonder klik
+voet,600,FP,K,dubbele box op dezelfde speler (IoU 0.60 met een andere box),dubbele box

@@ -1,0 +1,11 @@
+# The 100 Roboflow frames (export v2) that best.pt was trained on. Only train/ exists locally,
+# so val points to the same images (only usable for sanity checks, not as held-out data).
+train: train/images
+val: train/images
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee

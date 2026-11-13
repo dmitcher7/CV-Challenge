@@ -1,0 +1,12 @@
+# Roboflow export v4 (136 images): the exact data the final model psg_vs_inter_CV.pt was trained on.
+# As in the original training run, val points to the training images (there was no separate validation split),
+# so the validation metrics during training are training metrics. See notebooks/01_model_training.ipynb.
+train: train/images
+val: train/images
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee

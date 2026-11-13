@@ -1,0 +1,519 @@
+{
+ "runs": {
+  "COCO_yolo26l_merged": {
+   "model": "COCO yolo26l",
+   "view": "merged",
+   "imgsz": 960,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 1.0,
+     "recall": 0.0,
+     "mAP50": 0.0,
+     "mAP50-95": 0.0,
+     "model": "COCO yolo26l",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "person",
+     "instances": 326,
+     "precision": 0.942574435070088,
+     "recall": 0.9062884505041564,
+     "mAP50": 0.9760726963561202,
+     "mAP50-95": 0.6691522934071462,
+     "model": "COCO yolo26l",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.971287217535044,
+     "recall": 0.4531442252520782,
+     "mAP50": 0.4880363481780601,
+     "mAP50-95": 0.3345761467035731,
+     "model": "COCO yolo26l",
+     "view": "merged",
+     "imgsz": 960
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_COCO_yolo26l_merged.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\COCO_yolo26l_merged"
+  },
+  "bestpt_classes": {
+   "model": "best.pt",
+   "view": "classes",
+   "imgsz": 960,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.8663350573405411,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.078,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_A",
+     "instances": 142,
+     "precision": 0.9858462967739411,
+     "recall": 0.9810371619994669,
+     "mAP50": 0.9941793850350423,
+     "mAP50-95": 0.7828023534542619,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_B",
+     "instances": 149,
+     "precision": 0.9865660999785592,
+     "recall": 0.9865771812080537,
+     "mAP50": 0.9927670140019538,
+     "mAP50-95": 0.842901207526037,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_B_goal_keeper",
+     "instances": 15,
+     "precision": 0.966154836042915,
+     "recall": 1.0,
+     "mAP50": 0.995,
+     "mAP50-95": 0.8201333333333334,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "referee",
+     "instances": 20,
+     "precision": 0.9077848325105227,
+     "recall": 0.984914815496537,
+     "mAP50": 0.9415240641711229,
+     "mAP50-95": 0.6845569038804332,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.9425374245292957,
+     "recall": 0.8305058317408115,
+     "mAP50": 0.8236940926416239,
+     "mAP50-95": 0.6416787596388132,
+     "model": "best.pt",
+     "view": "classes",
+     "imgsz": 960
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_bestpt_classes.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\bestpt_classes"
+  },
+  "bestpt_merged": {
+   "model": "best.pt",
+   "view": "merged",
+   "imgsz": 960,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.934424583849396,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.078,
+     "model": "best.pt",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "person",
+     "instances": 326,
+     "precision": 0.9969170381119445,
+     "recall": 0.9919144576311545,
+     "mAP50": 0.9939846153846155,
+     "mAP50-95": 0.8150443916978162,
+     "model": "best.pt",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.9656708109806702,
+     "recall": 0.5959572288155772,
+     "mAP50": 0.5944923076923078,
+     "mAP50-95": 0.44652219584890807,
+     "model": "best.pt",
+     "view": "merged",
+     "imgsz": 960
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_bestpt_merged.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\bestpt_merged"
+  },
+  "ball-finetune_classes": {
+   "model": "ball-finetune",
+   "view": "classes",
+   "imgsz": 960,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.923970471113105,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.058499999999999996,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_A",
+     "instances": 142,
+     "precision": 0.9853845109977565,
+     "recall": 0.9495922848950634,
+     "mAP50": 0.9917705818859779,
+     "mAP50-95": 0.7336457509680477,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_B",
+     "instances": 149,
+     "precision": 0.9908597264040554,
+     "recall": 0.9865771812080537,
+     "mAP50": 0.9913978978978979,
+     "mAP50-95": 0.7359985792009542,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "player_B_goal_keeper",
+     "instances": 15,
+     "precision": 0.9819561776245409,
+     "recall": 1.0,
+     "mAP50": 0.995,
+     "mAP50-95": 0.7129271561771563,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "referee",
+     "instances": 20,
+     "precision": 0.8494348842227082,
+     "recall": 0.95,
+     "mAP50": 0.8600155400155399,
+     "mAP50-95": 0.6123401771839272,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.9463211540724332,
+     "recall": 0.8172338932206233,
+     "mAP50": 0.8066368039598831,
+     "mAP50-95": 0.5706823327060171,
+     "model": "ball-finetune",
+     "view": "classes",
+     "imgsz": 960
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_ball-finetune_classes.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\ball-finetune_classes"
+  },
+  "ball-finetune_merged": {
+   "model": "ball-finetune",
+   "view": "merged",
+   "imgsz": 960,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.9010720256717275,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.058499999999999996,
+     "model": "ball-finetune",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "person",
+     "instances": 326,
+     "precision": 0.9907002356039899,
+     "recall": 0.9803360983932269,
+     "mAP50": 0.9919519573796578,
+     "mAP50-95": 0.7327331745609899,
+     "model": "ball-finetune",
+     "view": "merged",
+     "imgsz": 960
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.9458861306378588,
+     "recall": 0.5901680491966135,
+     "mAP50": 0.5934759786898289,
+     "mAP50-95": 0.3956165872804949,
+     "model": "ball-finetune",
+     "view": "merged",
+     "imgsz": 960
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_ball-finetune_merged.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\ball-finetune_merged"
+  },
+  "ball-finetune_1280_classes": {
+   "model": "ball-finetune@1280",
+   "view": "classes",
+   "imgsz": 1280,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.49298581610828673,
+     "recall": 0.4,
+     "mAP50": 0.32833333333333337,
+     "mAP50-95": 0.13033333333333336,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_A",
+     "instances": 142,
+     "precision": 0.9663088912616349,
+     "recall": 0.971830985915493,
+     "mAP50": 0.991114833378832,
+     "mAP50-95": 0.7543679202031199,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_B",
+     "instances": 149,
+     "precision": 0.9599275410387181,
+     "recall": 0.9865771812080537,
+     "mAP50": 0.9898585957091113,
+     "mAP50-95": 0.7261530166378746,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_B_goal_keeper",
+     "instances": 15,
+     "precision": 0.8773964851926164,
+     "recall": 1.0,
+     "mAP50": 0.995,
+     "mAP50-95": 0.7454651515151515,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "referee",
+     "instances": 20,
+     "precision": 0.8000218834778549,
+     "recall": 0.95,
+     "mAP50": 0.9333081046023568,
+     "mAP50-95": 0.697196792623852,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.8193281234158223,
+     "recall": 0.8616816334247094,
+     "mAP50": 0.8475229734047268,
+     "mAP50-95": 0.6107032428626663,
+     "model": "ball-finetune@1280",
+     "view": "classes",
+     "imgsz": 1280
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_ball-finetune_1280_classes.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\ball-finetune_1280_classes"
+  },
+  "ball-finetune_1280_merged": {
+   "model": "ball-finetune@1280",
+   "view": "merged",
+   "imgsz": 1280,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.48871592910106154,
+     "recall": 0.4,
+     "mAP50": 0.32833333333333337,
+     "mAP50-95": 0.13033333333333336,
+     "model": "ball-finetune@1280",
+     "view": "merged",
+     "imgsz": 1280
+    },
+    {
+     "class": "person",
+     "instances": 326,
+     "precision": 0.9597733991412779,
+     "recall": 0.9877300613496932,
+     "mAP50": 0.991761962126972,
+     "mAP50-95": 0.735237736970525,
+     "model": "ball-finetune@1280",
+     "view": "merged",
+     "imgsz": 1280
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.7242446641211697,
+     "recall": 0.6938650306748466,
+     "mAP50": 0.6600476477301527,
+     "mAP50-95": 0.43278553515192913,
+     "model": "ball-finetune@1280",
+     "view": "merged",
+     "imgsz": 1280
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_ball-finetune_1280_merged.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\ball-finetune_1280_merged"
+  },
+  "bestpt_1280_classes": {
+   "model": "best.pt@1280",
+   "view": "classes",
+   "imgsz": 1280,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.7834865259062209,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.11699999999999999,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_A",
+     "instances": 142,
+     "precision": 0.9633498609604236,
+     "recall": 0.971830985915493,
+     "mAP50": 0.9906280718246876,
+     "mAP50-95": 0.7668890309769072,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_B",
+     "instances": 149,
+     "precision": 0.9872017026043476,
+     "recall": 0.9865771812080537,
+     "mAP50": 0.9889298430166695,
+     "mAP50-95": 0.7983717804100334,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "player_B_goal_keeper",
+     "instances": 15,
+     "precision": 0.9282567053611062,
+     "recall": 1.0,
+     "mAP50": 0.995,
+     "mAP50-95": 0.7836956709956711,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "referee",
+     "instances": 20,
+     "precision": 0.8651983314200719,
+     "recall": 0.9631725949759395,
+     "mAP50": 0.9712513701132628,
+     "mAP50-95": 0.7211782522038916,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.905498625250434,
+     "recall": 0.8243161524198973,
+     "mAP50": 0.8281618569909242,
+     "mAP50-95": 0.6374269469173007,
+     "model": "best.pt@1280",
+     "view": "classes",
+     "imgsz": 1280
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_bestpt_1280_classes.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\bestpt_1280_classes"
+  },
+  "bestpt_1280_merged": {
+   "model": "best.pt@1280",
+   "view": "merged",
+   "imgsz": 1280,
+   "rows": [
+    {
+     "class": "ball",
+     "instances": 5,
+     "precision": 0.8538112004081244,
+     "recall": 0.2,
+     "mAP50": 0.195,
+     "mAP50-95": 0.11699999999999999,
+     "model": "best.pt@1280",
+     "view": "merged",
+     "imgsz": 1280
+    },
+    {
+     "class": "person",
+     "instances": 326,
+     "precision": 0.9875764124477997,
+     "recall": 0.9753628400532802,
+     "mAP50": 0.9914247085646415,
+     "mAP50-95": 0.7830918171386687,
+     "model": "best.pt@1280",
+     "view": "merged",
+     "imgsz": 1280
+    },
+    {
+     "class": "all",
+     "instances": 331,
+     "precision": 0.9206938064279621,
+     "recall": 0.5876814200266401,
+     "mAP50": 0.5932123542823208,
+     "mAP50-95": 0.4500459085693344,
+     "model": "best.pt@1280",
+     "view": "merged",
+     "imgsz": 1280
+    }
+   ],
+   "curves": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\curves_bestpt_1280_merged.npz",
+   "plots": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\pr\\bestpt_1280_merged"
+  }
+ },
+ "test_counts": {
+  "images": 15,
+  "ball": 5,
+  "person": 326
+ }
+}

@@ -1,0 +1,84 @@
+{
+ "anchor": "feet",
+ "click_height_median": 0.8353299856527974,
+ "model_frames": {
+  "labelled": 6,
+  "matched": 6,
+  "skipped_no_processed_frame": 0,
+  "max_gap": 1,
+  "exact": 6,
+  "max_offset": 0
+ },
+ "radius_m": 3.0,
+ "players": {
+  "position_error_m": {
+   "n": 140,
+   "mean": 1.0914086785976715,
+   "median": 1.0264520566277944,
+   "p90": 1.7704680338674248
+  },
+  "match_distance_box_heights": {
+   "n": 0,
+   "mean": null,
+   "median": null,
+   "p90": null
+  },
+  "tp": 140,
+  "fp": 3,
+  "fn": 0,
+  "precision": 0.9790209790209791,
+  "recall": 1.0,
+  "f1": 0.9893992932862191
+ },
+ "teams": {
+  "n": 140,
+  "role_accuracy": 0.9928571428571429,
+  "team_accuracy_merged": 0.9928571428571429,
+  "confusion": {
+   "A": {
+    "A": 59,
+    "R": 1
+   },
+   "B": {
+    "B": 59
+   },
+   "K": {
+    "K": 6
+   },
+   "R": {
+    "R": 15
+   }
+  }
+ },
+ "ball": {
+  "frames_with_ball": 4,
+  "detection_rate": 1.0,
+  "position_error_m": {
+   "n": 4,
+   "mean": 0.4812732572435726,
+   "median": 0.16494393697957138,
+   "p90": 1.1500997562603725
+  },
+  "within_3m": 1.0,
+  "frames_without_ball": 2,
+  "false_ball_rate": 0.5
+ },
+ "possession": {
+  "n": 6,
+  "accuracy": 0.6666666666666666,
+  "confusion": {
+   "A": {
+    "A": 4,
+    "-": 2
+   }
+  }
+ },
+ "tracking": {
+  "id_switches": 36,
+  "n_gt_ids": 75,
+  "idtp": 52,
+  "idfp": 91,
+  "idfn": 88,
+  "idf1_lite": 0.3674911660777385
+ }
+}

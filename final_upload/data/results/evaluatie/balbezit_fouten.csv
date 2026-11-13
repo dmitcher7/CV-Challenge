@@ -1,0 +1,8 @@
+sessie,frame,gelabeld,systeem,oorzaak
+lichaam,360,PSG,geen,geen bal in dit frame (balbezit vervalt na 15 frames zonder speler bij de bal)
+lichaam,420,PSG,geen,geen bal in dit frame (balbezit vervalt na 15 frames zonder speler bij de bal)
+lichaam,570,PSG,Inter,bal (detected) ligt 4.8 m van de dichtstbijzijnde speler (keeper Inter): buiten de straal van 2 m
+lichaam,600,PSG,geen,bal (interpolated) ligt 4.5 m van de dichtstbijzijnde speler (Inter): buiten de straal van 2 m
+lichaam,630,PSG,geen,geen bal in dit frame (balbezit vervalt na 15 frames zonder speler bij de bal)
+voet,360,PSG,geen,geen bal in dit frame (balbezit vervalt na 15 frames zonder speler bij de bal)
+voet,600,PSG,geen,bal (interpolated) ligt 4.5 m van de dichtstbijzijnde speler (Inter): buiten de straal van 2 m
