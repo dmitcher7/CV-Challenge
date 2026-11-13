@@ -232,76 +232,125 @@ def transform_points(points, H, pitch_w=1050, pitch_h=680):
     return mapped
 
 
-class BallSortTracker:
+class InvariantBallTracker:
     """
-    SORT (Simple Online and Realtime Tracking) met Time Series Prediction
-    en Moving Average Smoothing voor de voetbal.
+    Geavanceerde Invariante Voetbal Tracker:
+    - Fysisch begrensde spatiale gating (nooit teleporteren of overspringen naar overkant)
+    - Baldrager / Dribbel persistentie (wanneer bal bij de voeten van een speler is)
+    - Onmiddellijke overgang naar vlucht/pass bij schot of voorzet
+    - Strikte 2D veldconsistentie en penalty-stip uitsluiting
     """
-    def __init__(self, alpha=0.70, max_missing=20):
-        self.state = None  # [x, y, vx, vy]
-        self.P = np.eye(4, dtype=np.float32) * 40.0
-        # Time Series constant-velocity state transition matrix F met wrijvingsdemping
-        self.F = np.array([
-            [1, 0, 1, 0],
-            [0, 1, 0, 1],
-            [0, 0, 0.95, 0],
-            [0, 0, 0, 0.95]
-        ], dtype=np.float32)
-        self.Q = np.diag([2.0, 2.0, 6.0, 6.0]).astype(np.float32)
-        self.H_k = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0]
-        ], dtype=np.float32)
-        self.R = np.diag([3.0, 3.0]).astype(np.float32)
-        self.ema_pos = None
-        self.alpha = alpha  # Moving average smoothing factor
-        self.missing_frames = 0
-        self.max_missing = max_missing
+    def __init__(self):
+        self.pos_cam = None
+        self.pos_pitch = None
+        self.vel_cam = np.zeros(2, dtype=np.float32)
+        self.missing = 0
+        self.last_conf = None
 
-    def predict(self):
-        """Voert time series voorspelling uit naar het volgende frame."""
-        if self.state is None:
-            return None
-        self.state = self.F @ self.state
-        self.P = self.F @ self.P @ self.F.T + self.Q
-        self.missing_frames += 1
-        return self.state[:2]
+    def update(self, candidates, player_boxes, Ht):
+        if self.pos_cam is not None:
+            self.pos_cam = self.pos_cam + self.vel_cam
+            self.vel_cam *= 0.86  # Wrijvingsdemping
+            self.missing += 1
 
-    def update(self, z):
-        """Kalman update met meting z en Moving Average smoothing."""
-        z = np.array(z, dtype=np.float32)
-        if self.state is None:
-            self.state = np.array([z[0], z[1], 0.0, 0.0], dtype=np.float32)
-            self.P = np.eye(4, dtype=np.float32) * 20.0
-            self.ema_pos = z.copy()
-            self.missing_frames = 0
-            return self.ema_pos
+        # Controleer of bal momenteel bij een speler aan de voet is
+        carrier_feet = None
+        if self.pos_cam is not None and player_boxes:
+            best_d = 52.0
+            for pb in player_boxes:
+                feet = np.array([(pb[0] + pb[2]) / 2.0, pb[3]], dtype=np.float32)
+                d = np.hypot(self.pos_cam[0] - feet[0], self.pos_cam[1] - feet[1])
+                if d <= best_d:
+                    best_d = d
+                    carrier_feet = feet
 
-        y = z - (self.H_k @ self.state)
-        S = self.H_k @ self.P @ self.H_k.T + self.R
-        K = self.P @ self.H_k.T @ np.linalg.inv(S)
-        self.state = self.state + K @ y
-        self.P = (np.eye(4) - K @ self.H_k) @ self.P
-        self.missing_frames = 0
+        chosen = None
+        chosen_p2d = None
+        chosen_conf = None
+        chosen_type = 'none'
 
-        # Moving average smoothing
-        raw_pos = self.state[:2]
-        self.ema_pos = self.alpha * raw_pos + (1.0 - self.alpha) * self.ema_pos
-        return self.ema_pos
+        if self.pos_cam is not None:
+            max_d_cam = min(170.0, 75.0 + self.missing * 4.5)
+            cands_scored = []
+            for c in candidates:
+                d_cam = np.linalg.norm(c['center'] - self.pos_cam)
+                if d_cam <= max_d_cam:
+                    pt = np.array([[c['center']]], dtype=np.float32)
+                    p2d = cv2.perspectiveTransform(pt, Ht)[0][0]
+                    if self.pos_pitch is not None:
+                        d_pitch = np.linalg.norm(p2d - self.pos_pitch)
+                        if d_pitch > 160.0:  # Kan nooit naar overkant van veld springen
+                            continue
+                    cost = d_cam - c['conf'] * 45.0
+                    cands_scored.append((cost, c, p2d))
 
-    def get_pos(self):
-        """Geeft de afgevlakte positie of tijdreeks-voorspelling terug."""
-        if self.missing_frames > self.max_missing:
-            self.state = None
-            self.ema_pos = None
-            return None
-        return self.ema_pos if self.missing_frames == 0 else self.state[:2]
+            if cands_scored:
+                cands_scored.sort(key=lambda x: x[0])
+                chosen = cands_scored[0][1]['center']
+                chosen_p2d = cands_scored[0][2]
+                chosen_conf = cands_scored[0][1]['conf']
+                chosen_type = 'detected'
+            elif carrier_feet is not None and self.missing <= 35:
+                # Dribbel occlusie fallback: bal blijft soepel bij de baldrager
+                chosen = np.array([carrier_feet[0], carrier_feet[1] - 4.0], dtype=np.float32)
+                pt = np.array([[chosen]], dtype=np.float32)
+                chosen_p2d = cv2.perspectiveTransform(pt, Ht)[0][0]
+                chosen_conf = 0.50
+                chosen_type = 'carrier'
+        else:
+            # Re-acquisitie (alleen hoge confidence dichtbij een speler)
+            if candidates and player_boxes:
+                reacq = []
+                for c in candidates:
+                    pt = np.array([[c['center']]], dtype=np.float32)
+                    p2d = cv2.perspectiveTransform(pt, Ht)[0][0]
+                    for pb in player_boxes:
+                        feet = ((pb[0] + pb[2]) / 2.0, pb[3])
+                        if np.hypot(c['center'][0] - feet[0], c['center'][1] - feet[1]) <= 65.0:
+                            if c['conf'] >= 0.12:
+                                reacq.append((c, p2d))
+                            break
+                if reacq:
+                    reacq.sort(key=lambda x: -x[0]['conf'])
+                    chosen = reacq[0][0]['center']
+                    chosen_p2d = reacq[0][1]
+                    chosen_conf = reacq[0][0]['conf']
+                    chosen_type = 'reacq'
+
+        if chosen is not None:
+            if self.pos_cam is None:
+                self.pos_cam = chosen.copy()
+                self.pos_pitch = chosen_p2d.copy()
+                self.vel_cam = np.zeros(2, dtype=np.float32)
+            else:
+                new_v_cam = chosen - self.pos_cam
+                speed_cam = np.linalg.norm(new_v_cam)
+                if chosen_type == 'carrier':
+                    self.vel_cam = 0.3 * self.vel_cam + 0.7 * new_v_cam
+                    self.pos_cam = chosen.copy()
+                elif speed_cam < 80.0:
+                    self.vel_cam = 0.5 * self.vel_cam + 0.5 * new_v_cam
+                    self.pos_cam = 0.75 * chosen + 0.25 * self.pos_cam
+                else:
+                    self.vel_cam = new_v_cam * 0.7
+                    self.pos_cam = chosen.copy()
+                self.pos_pitch = chosen_p2d.copy()
+            self.missing = 0
+            self.last_conf = chosen_conf
+        else:
+            if self.missing > 35:
+                self.pos_cam = None
+                self.pos_pitch = None
+                self.last_conf = None
+
+        return self.pos_cam, self.pos_pitch, self.last_conf
 
 
 def is_penalty_spot_or_marking(center_cam, H):
     """
     Sluit de penaltystip en veldkrijtmarkeringen 100% uit.
-    Controleert zowel in de fysieke invariante 2D pitchruimte als in cameraruimte.
+    Controleert in de fysieke invariante 2D pitchruimte met een strakke straal (20px)
+    zodat echte passes door het strafschopgebied NOOIT worden geblokkeerd.
     """
     cx, cy = center_cam
 
@@ -310,24 +359,15 @@ def is_penalty_spot_or_marking(center_cam, H):
     p2d = cv2.perspectiveTransform(pt, H)[0][0]
     X, Y = p2d[0], p2d[1]
 
-    # Rechter strafschopstip (exact X=925, Y=340, ruime straal 55px)
+    # Rechter strafschopstip (exact X=925, Y=340, straal 20px)
     dist_pen_pitch = np.hypot(X - 925.0, Y - 340.0)
-    if dist_pen_pitch <= 55.0:
+    if dist_pen_pitch <= 20.0:
         return True
 
-    # Middenstip (exact X=525, Y=340, straal 45px)
+    # Middenstip (exact X=525, Y=340, straal 20px)
     dist_mid_pitch = np.hypot(X - 525.0, Y - 340.0)
-    if dist_mid_pitch <= 45.0:
+    if dist_mid_pitch <= 20.0:
         return True
-
-    # 2. Camera-ruimte projectie van de penaltystip
-    try:
-        H_inv = np.linalg.inv(H)
-        pen_cam = cv2.perspectiveTransform(np.array([[[925.0, 340.0]]], dtype=np.float32), H_inv)[0][0]
-        if np.hypot(cx - pen_cam[0], cy - pen_cam[1]) <= 50.0:
-            return True
-    except Exception:
-        pass
 
     return False
 
@@ -423,7 +463,7 @@ def draw_tactical_radar(pitch_base, active_tracks, ball_pos_2d, ball_trail):
         bx, by = int(round(ball_pos_2d[0])), int(round(ball_pos_2d[1]))
         dist_pen = np.hypot(bx - 925.0, by - 340.0)
         dist_mid = np.hypot(bx - 525.0, by - 340.0)
-        if dist_pen > 45.0 and dist_mid > 40.0:
+        if dist_pen > 18.0 and dist_mid > 18.0:
             # Subtiele schaduw
             cv2.circle(radar, (bx + 2, by + 2), 13, (10, 20, 10), -1, cv2.LINE_AA)
             # Witte contrastring voor hoog contrast op groen veld
@@ -515,11 +555,11 @@ def main():
 
     print("=" * 65)
     print(f"[SUPER-PIPELINE] Starten op {device} met imgsz={args.imgsz}")
-    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']} (Penalty Spot & Cleat Filters Actief)")
+    print(f"[BALL-CONFIG] Detectie threshold conf={CLASS_CONFIG[0]['conf']} (Invariant Tracking & Dribble Hold Actief)")
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
-    tracker = BallSortTracker(alpha=0.70, max_missing=25)
+    tracker = InvariantBallTracker()
     camera_tracker = CameraTracker(max_corners=500)
     player_tracker = TeamPlayerTracker(max_age=6, match_dist=38.0, ema_alpha=0.65)
     ball_trail = []
@@ -537,7 +577,7 @@ def main():
         H_t2_0 = camera_tracker.update(frame)
         Ht = H @ H_t2_0
 
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.07, device=device, verbose=False)[0]
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.018, device=device, verbose=False)[0]
 
         raw_players = {1: [], 2: [], 3: [], 4: []}
         player_boxes = []
@@ -551,7 +591,7 @@ def main():
 
             # Eerst spelers verzamelen om schoenposities te kennen
             for box, cid, score in zip(boxes, classes, scores):
-                if cid in [1, 2, 3, 4] and score >= 0.28:
+                if cid in [1, 2, 3, 4] and score >= 0.25:
                     player_boxes.append(box)
 
             for box, cid, score in zip(boxes, classes, scores):
@@ -566,6 +606,10 @@ def main():
                 center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
 
                 if cid == 0:
+                    # Filter 0: Onderste cameragrens (fotografen / reclameborden)
+                    if center[1] > 1020:
+                        continue
+
                     # Filter 1: Harde eliminatie van de penaltystip (invariante 2D pitchruimte via Ht)
                     if is_penalty_spot_or_marking(center, Ht):
                         continue
@@ -573,14 +617,14 @@ def main():
                     # Filter 2: Veld-ROI (de bal moet zich binnen het wettige speelveld bevinden)
                     pt_cam = np.array([[center]], dtype=np.float32)
                     p2d = cv2.perspectiveTransform(pt_cam, Ht)[0][0]
-                    if p2d[0] < 10 or p2d[0] > 1040 or p2d[1] < 10 or p2d[1] > 670:
+                    if p2d[0] < 15 or p2d[0] > 1035 or p2d[1] < 15 or p2d[1] > 655:
                         continue
 
                     bw = x2 - x1
                     bh = y2 - y1
                     aspect = bw / max(1.0, bh)
                     # Filter 3: Sferische vormcontrole & maximale balgrootte
-                    if aspect < 0.45 or aspect > 2.10 or bw > 35 or bh > 35:
+                    if aspect < 0.40 or aspect > 2.20 or bw > 38 or bh > 38:
                         continue
 
                     ball_candidates.append({
@@ -624,75 +668,25 @@ def main():
         # 3. Speler Tracking + Anti-Jitter EMA Smoothing
         active_player_tracks = player_tracker.update(deduped_players)
 
-        # 4. SORT Baltracking met Time Series Voorspelling
-        pred_pos = tracker.predict()
-        chosen_measurement = None
-        chosen_conf = None
+        # 4. Invariante Baltracking (voorkomt teleporteren, volgt baldrager bij occlusie)
+        current_ball_cam, current_ball_2d, chosen_conf = tracker.update(ball_candidates, player_boxes, Ht)
 
-        if pred_pos is not None and tracker.missing_frames <= tracker.max_missing:
-            gated = []
-            for cand in ball_candidates:
-                d = np.linalg.norm(cand['center'] - pred_pos)
-                max_d = 95.0 + tracker.missing_frames * 20.0
-                if d <= max_d:
-                    cost = d - cand['conf'] * 35.0
-                    gated.append((cost, cand))
-            if gated:
-                gated.sort(key=lambda x: x[0])
-                chosen_measurement = gated[0][1]['center']
-                chosen_conf = gated[0][1]['conf']
-        elif ball_candidates:
-            reacq = []
-            for cand in ball_candidates:
-                if is_penalty_spot_or_marking(cand['center'], Ht):
-                    continue
-                # Geen re-acquisitie te ver weg van alle spelers (max 240px)
-                if player_boxes:
-                    dist_to_players = min([np.hypot(cand['center'][0] - ((pb[0]+pb[2])/2), cand['center'][1] - pb[3]) for pb in player_boxes])
-                    if dist_to_players > 240.0:
-                        continue
-                if is_foot_region(cand['center'], player_boxes):
-                    if cand['conf'] >= 0.25:
-                        reacq.append(cand)
-                else:
-                    if cand['conf'] >= 0.08:
-                        reacq.append(cand)
-            if reacq:
-                reacq.sort(key=lambda x: -x['conf'])
-                chosen_measurement = reacq[0]['center']
-                chosen_conf = reacq[0]['conf']
-
-        if chosen_measurement is not None:
-            tracker.update(chosen_measurement)
-
-        current_ball_cam = tracker.get_pos()
-
-        # Harde failsafe: als getrackte bal ooit op penaltystip belandt -> reset tracker direct!
-        if current_ball_cam is not None and is_penalty_spot_or_marking(current_ball_cam, Ht):
-            tracker.state = None
-            tracker.ema_pos = None
-            current_ball_cam = None
-
-        current_ball_2d = None
         prev_ball_2d = last_known_2d_ball
 
-        if current_ball_cam is not None:
+        if current_ball_cam is not None and current_ball_2d is not None:
             total_ball_frames += 1
-            is_pred = tracker.missing_frames > 0
+            is_pred = tracker.missing > 0
             draw_camera_ball_highlight(cam_display, current_ball_cam, chosen_conf, is_pred)
-            mapped = transform_points([current_ball_cam], Ht, pitch_img.shape[1], pitch_img.shape[0])
-            if len(mapped) > 0:
-                p2d = (int(round(mapped[0][0])), int(round(mapped[0][1])))
-                # Veiligheid: teken NOOIT op de penaltystip
-                if np.hypot(p2d[0] - 925.0, p2d[1] - 340.0) > 45.0:
-                    current_ball_2d = p2d
-                    if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 110:
-                        ball_trail.append(p2d)
-                    else:
-                        ball_trail = [p2d]
-                    if len(ball_trail) > 30:
-                        ball_trail.pop(0)
-                    last_known_2d_ball = current_ball_2d
+            p2d = (int(round(current_ball_2d[0])), int(round(current_ball_2d[1])))
+            
+            # Voeg toe aan balspoor
+            if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 110:
+                ball_trail.append(p2d)
+            else:
+                ball_trail = [p2d]
+            if len(ball_trail) > 30:
+                ball_trail.pop(0)
+            last_known_2d_ball = p2d
         else:
             last_known_2d_ball = None
             if len(ball_trail) > 0:
