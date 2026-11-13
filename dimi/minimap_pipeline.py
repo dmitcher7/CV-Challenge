@@ -34,10 +34,10 @@ CONFIG_PATH = DIMI_DIR / "homography_config.json"
 CLASS_CONFIG = {
     0: {
         "name": "Ball",
-        "color_fill": (255, 255, 255),    # Zuiver wit
-        "color_border": (0, 0, 255),      # Fel rood
-        "conf": 0.07,                     # Optimale recall voor echte bal detectie
-        "radius": 9
+        "color_fill": (0, 0, 255),        # Altijd zuiver felrood
+        "color_border": (0, 0, 255),      # Altijd zuiver felrood
+        "conf": 0.025,                    # Verhoogde recall voor bal in slotfase en bij benen
+        "radius": 10
     },
     1: {
         "name": "PSG (Team A)",
@@ -360,14 +360,16 @@ def draw_styled_camera_box(img, box, cid, score):
 
 
 def draw_camera_ball_highlight(img, center, score=None, is_pred=False):
-    """Tekent een opvallende balmarkering op het camerabeeld."""
+    """Tekent een opvallende, altijd felrode balmarkering op het camerabeeld."""
     cx, cy = int(center[0]), int(center[1])
-    color_ring = (0, 165, 255) if is_pred else (0, 0, 255)
-    cv2.circle(img, (cx, cy), 13, color_ring, 2, cv2.LINE_AA)
-    cv2.circle(img, (cx, cy), 8, (255, 255, 255), -1, cv2.LINE_AA)
-    cv2.circle(img, (cx, cy), 8, color_ring, 1, cv2.LINE_AA)
-    label = "BALL (PRED)" if is_pred else (f"BALL {score:.2f}" if score is not None else "BALL")
-    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_ring, 2, cv2.LINE_AA)
+    # Altijd zuiver felrood (BGR: 0, 0, 255)
+    cv2.circle(img, (cx, cy), 14, (0, 0, 255), 3, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 8, (0, 0, 255), -1, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 3, (255, 255, 255), -1, cv2.LINE_AA)
+    label = "BALL" if is_pred or score is None else f"BALL {score:.2f}"
+    # Tekst met zwarte schaduw voor leesbaarheid
+    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 0), 3, cv2.LINE_AA)
+    cv2.putText(img, label, (cx - 18, max(18, cy - 16)), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 255), 2, cv2.LINE_AA)
 
 
 def draw_tactical_player(radar, pt, cid):
@@ -398,16 +400,16 @@ def draw_tactical_radar(pitch_base, active_tracks, ball_pos_2d, ball_trail):
     """Tekent alle getrackte spelers en de bal op de 2D minimap."""
     radar = pitch_base.copy()
 
-    # 1. Teken balspoor met fading snelheidsverloop
+    # 1. Teken balspoor met zuiver rood verloop
     if len(ball_trail) > 1:
         for i in range(1, len(ball_trail)):
             p_prev = ball_trail[i - 1]
             p_curr = ball_trail[i]
             dist = np.hypot(p_curr[0] - p_prev[0], p_curr[1] - p_prev[1])
-            if dist <= 75:
+            if dist <= 95:
                 progress = i / len(ball_trail)
-                thickness = int(1 + progress * 3)
-                color = (0, int(150 + 105 * progress), 255)
+                thickness = int(2 + progress * 3)
+                color = (0, 0, int(150 + 105 * progress))  # Fading felrood
                 cv2.line(radar, p_prev, p_curr, color, thickness, cv2.LINE_AA)
 
     # 2. Teken getrackte spelers (scheidsrechters eerst, dan veldspelers, dan keeper)
@@ -416,15 +418,20 @@ def draw_tactical_radar(pitch_base, active_tracks, ball_pos_2d, ball_trail):
             if trk["team"] == draw_cid:
                 draw_tactical_player(radar, trk["pos"], draw_cid)
 
-    # 3. Teken de bal (prominent en oplichtend) - NOOIT op de penaltystip of middenstip
+    # 3. Teken de bal (altijd prominent felrood) - NOOIT op de penaltystip of middenstip
     if ball_pos_2d is not None:
         bx, by = int(round(ball_pos_2d[0])), int(round(ball_pos_2d[1]))
         dist_pen = np.hypot(bx - 925.0, by - 340.0)
         dist_mid = np.hypot(bx - 525.0, by - 340.0)
         if dist_pen > 45.0 and dist_mid > 40.0:
-            cv2.circle(radar, (bx, by), 14, (0, 0, 255), 2, cv2.LINE_AA)
-            cv2.circle(radar, (bx, by), 9, (255, 255, 255), -1, cv2.LINE_AA)
-            cv2.circle(radar, (bx, by), 4, (0, 0, 255), -1, cv2.LINE_AA)
+            # Subtiele schaduw
+            cv2.circle(radar, (bx + 2, by + 2), 13, (10, 20, 10), -1, cv2.LINE_AA)
+            # Witte contrastring voor hoog contrast op groen veld
+            cv2.circle(radar, (bx, by), 13, (255, 255, 255), -1, cv2.LINE_AA)
+            # Volledig felrode bal (altijd rood!)
+            cv2.circle(radar, (bx, by), 10, (0, 0, 255), -1, cv2.LINE_AA)
+            # Wit lichtaccent in het centrum
+            cv2.circle(radar, (bx - 2, by - 2), 3, (255, 255, 255), -1, cv2.LINE_AA)
 
     return radar
 
@@ -512,7 +519,7 @@ def main():
     print(f"[OUTPUT] {out_video_path}")
     print("=" * 65)
 
-    tracker = BallSortTracker(alpha=0.70, max_missing=20)
+    tracker = BallSortTracker(alpha=0.70, max_missing=25)
     camera_tracker = CameraTracker(max_corners=500)
     player_tracker = TeamPlayerTracker(max_age=6, match_dist=38.0, ema_alpha=0.65)
     ball_trail = []
@@ -563,11 +570,17 @@ def main():
                     if is_penalty_spot_or_marking(center, Ht):
                         continue
 
+                    # Filter 2: Veld-ROI (de bal moet zich binnen het wettige speelveld bevinden)
+                    pt_cam = np.array([[center]], dtype=np.float32)
+                    p2d = cv2.perspectiveTransform(pt_cam, Ht)[0][0]
+                    if p2d[0] < 10 or p2d[0] > 1040 or p2d[1] < 10 or p2d[1] > 670:
+                        continue
+
                     bw = x2 - x1
                     bh = y2 - y1
                     aspect = bw / max(1.0, bh)
-                    # Filter 2: Sferische vormcontrole & maximale balgrootte
-                    if aspect < 0.50 or aspect > 1.95 or bw > 35 or bh > 35:
+                    # Filter 3: Sferische vormcontrole & maximale balgrootte
+                    if aspect < 0.45 or aspect > 2.10 or bw > 35 or bh > 35:
                         continue
 
                     ball_candidates.append({
@@ -620,9 +633,9 @@ def main():
             gated = []
             for cand in ball_candidates:
                 d = np.linalg.norm(cand['center'] - pred_pos)
-                max_d = 85.0 + tracker.missing_frames * 18.0
+                max_d = 95.0 + tracker.missing_frames * 20.0
                 if d <= max_d:
-                    cost = d - cand['conf'] * 30.0
+                    cost = d - cand['conf'] * 35.0
                     gated.append((cost, cand))
             if gated:
                 gated.sort(key=lambda x: x[0])
@@ -633,11 +646,16 @@ def main():
             for cand in ball_candidates:
                 if is_penalty_spot_or_marking(cand['center'], Ht):
                     continue
+                # Geen re-acquisitie te ver weg van alle spelers (max 240px)
+                if player_boxes:
+                    dist_to_players = min([np.hypot(cand['center'][0] - ((pb[0]+pb[2])/2), cand['center'][1] - pb[3]) for pb in player_boxes])
+                    if dist_to_players > 240.0:
+                        continue
                 if is_foot_region(cand['center'], player_boxes):
-                    if cand['conf'] >= 0.35:
+                    if cand['conf'] >= 0.25:
                         reacq.append(cand)
                 else:
-                    if cand['conf'] >= 0.12:
+                    if cand['conf'] >= 0.08:
                         reacq.append(cand)
             if reacq:
                 reacq.sort(key=lambda x: -x['conf'])
@@ -668,7 +686,7 @@ def main():
                 # Veiligheid: teken NOOIT op de penaltystip
                 if np.hypot(p2d[0] - 925.0, p2d[1] - 340.0) > 45.0:
                     current_ball_2d = p2d
-                    if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 95:
+                    if len(ball_trail) == 0 or np.hypot(p2d[0] - ball_trail[-1][0], p2d[1] - ball_trail[-1][1]) <= 110:
                         ball_trail.append(p2d)
                     else:
                         ball_trail = [p2d]
