@@ -58,7 +58,7 @@ st.markdown("---")
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Synchrone Video & Radar", 
-    "Veldbezetting Heatmap", 
+    "Veldbezetting Heatmap & Match Analytics", 
     "IoU & NMS Benchmark", 
     "Multi-Scale & Pyramid Heads",
     "Deep Learning Theorie & Examen Gids",
@@ -107,19 +107,45 @@ with tab1:
         st.markdown("**Dribble Carrier Hold:** Bij occlusie tussen benen blijft de bal verankerd aan de baldrager.")
         st.markdown("**Micro-Penaltystip Filter:** Straal van 20 px sluit de stip uit, maar laat passes ongehinderd door.")
 
-# ----------------- TAB 2: Heatmap -----------------
+# ----------------- TAB 2: Heatmap & Match Analytics -----------------
 with tab2:
+    st.subheader("Geautomatiseerde Match Analytics & Telemetrie")
+    st.write(
+        "De downstream analytics pipeline verwerkt automatisch alle getrackte 2D veldposities uit de homografie-radar "
+        "en berekent realtime fysieke afstanden, snelheden, schotdetectie en balbezit:"
+    )
+
+    analytics_json_path = RUNS_DIR / "tactical_radar_output" / "match_analytics.json"
+    if analytics_json_path.exists():
+        with open(analytics_json_path, "r", encoding="utf-8") as f:
+            ana = json.load(f)
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Afgelegde Balafstand", f"{ana['ball_telemetry']['total_distance_meters']} m", f"{ana['ball_telemetry']['total_distance_km']} km")
+        m2.metric("Pieksnelheid Bal", f"{ana['ball_telemetry']['peak_speed_kmh']} km/u", f"Gemiddeld: {ana['ball_telemetry']['average_speed_kmh']} km/u")
+        m3.metric("Aangevallen Doel", ana['shot_and_attack_analysis']['target_goal'].split('(')[0].strip(), "Doelcoördinaat: (1050, 340)")
+        m4.metric("Balbezit", f"Inter {ana['possession_share_percent']['Inter_Milan']}%", f"PSG {ana['possession_share_percent']['PSG']}% (Betwist: {ana['possession_share_percent']['Contested']}%)")
+
+        st.subheader("Schot- & Aanvalanalyse (Doelpogingen)")
+        shots = ana['shot_and_attack_analysis']['shots']
+        if shots:
+            df_shots = pd.DataFrame(shots)
+            df_shots.columns = ["Frame", "Tijdstip (s)", "Doel", "Snelheid (km/u)", "Veldcoördinaat (px)", "Afstand tot Doel (m)"]
+            st.dataframe(df_shots, use_container_width=True)
+            st.success(f"Gedetecteerd: {len(shots)} gerichte doelpogingen op het {ana['shot_and_attack_analysis']['target_goal']} door de aanvallende ploeg!")
+
+    st.markdown("---")
     st.subheader("Spatial Occupancy Heatmap (2D Gaussiaanse KDE)")
     st.write(
-        "Deze extensie visualiseert de ruimtelijke verdeling en veldbezetting van spelers over de volledige videoduur via "
-        "2D Kernel Density Estimation (KDE) met Gaussiaanse kernels:"
+        "Visualiseert de territoriale veldbezetting en pressing over de volledige 660 frames via "
+        "2D Kernel Density Estimation (KDE) met Gaussiaanse kernels op het speelveld:"
     )
     st.latex(r"f(x, y) = \frac{1}{2\pi \sigma^2} \sum_{i=1}^N \exp\left( -\frac{(x - x_i)^2 + (y - y_i)^2}{2\sigma^2} \right)")
 
     if HEATMAP_PATH.exists():
         st.image(str(HEATMAP_PATH), caption="2D Gaussiaanse Territoriale Dominantie Heatmap", use_container_width=True)
     else:
-        st.warning("Heatmap niet gevonden. Draai: python dimi/minimap_pipeline.py")
+        st.warning("Heatmap niet gevonden. Draai: python dimi/src/minimap_pipeline.py")
 
 # ----------------- TAB 3: IoU & NMS Benchmark -----------------
 with tab3:
