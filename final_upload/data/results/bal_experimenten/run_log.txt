@@ -1,0 +1,50 @@
+truth frames (baseline detected, conf>=0.3): 195
+windows per k: {5: 40, 10: 40, 20: 40, 40: 40}
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\kobe\match_analyse\experiments\ball_prediction\run_experiments.py:531: RuntimeWarning: All-NaN slice encountered
+  "med": float(np.nanmedian(e)), "p90": float(np.nanpercentile(e, 90)) if errs else float("nan"),
+E1 M0 basis {5: (0.9, 1.8), 10: (0.85, 3.0), 20: (0.0, nan), 40: (0.0, nan)}
+E1 M1a interp<=30 {5: (0.96, 2.0), 10: (0.96, 3.0), 20: (0.69, 6.1), 40: (0.0, nan)}
+E1 M1b interp<=60 {5: (0.98, 2.0), 10: (1.0, 3.2), 20: (1.0, 8.9), 40: (0.95, 17.0)}
+E1 M1c interp60+extrap15 (v const) {5: (1.0, 2.0), 10: (1.0, 3.2), 20: (1.0, 8.9), 40: (0.96, 17.1)}
+E1 M1d interp60+extrap30 (decay .9) {5: (1.0, 2.0), 10: (1.0, 3.2), 20: (1.0, 8.9), 40: (0.98, 17.5)}
+E1 M1e alleen extrap vooruit 40 (v const) {5: (1.0, 4.7), 10: (1.0, 8.3), 20: (1.0, 17.3), 40: (1.0, 38.3)}
+E1 M1f alleen extrap vooruit 40 (decay .9) {5: (1.0, 4.5), 10: (1.0, 8.4), 20: (1.0, 19.3), 40: (1.0, 33.6)}
+E1 M5a gate-fix (groei 1.5, 30 gemist, restart) {5: (0.96, 2.0), 10: (0.94, 3.0), 20: (0.0, nan), 40: (0.0, nan)}
+E1 M5b gate-fix + interp60 + extrap15 {5: (1.0, 2.0), 10: (1.0, 3.2), 20: (1.0, 7.5), 40: (0.96, 17.1)}
+E1 M2a zwak 0.05 strak gate (1+0.3d m) {5: (0.96, 1.9), 10: (0.96, 2.7), 20: (0.63, 2.6), 40: (0.62, 2.3)}
+E1 M2b zwak 0.05 ruim gate (2+0.5d m) {5: (0.96, 1.9), 10: (0.96, 2.7), 20: (0.64, 2.6), 40: (0.68, 2.6)}
+E1 M2c zwak 0.05, size<=60, strak {5: (0.96, 1.9), 10: (0.96, 2.7), 20: (0.63, 2.6), 40: (0.62, 2.3)}
+E1 M4a template matching {5: (0.98, 1.6), 10: (1.0, 1.6), 20: (0.94, 1.6), 40: (0.91, 1.7)}
+E1 M4b OpenCV TrackerMIL {5: (1.0, 2.1), 10: (1.0, 2.9), 20: (0.96, 4.1), 40: (0.99, 22.7)}
+E1 M3a crop 640 x0.5 (native schaal) 10 {'n': 45, 'recall': 1.0, 'med': 0.63, 'p90': 1.22, 'w10': 1.0, 'w25': 1.0, 'good': 1.0, 'windows': 6, 'contain': np.float64(1.0), 'secs': 15.05}
+E1 M3a crop 640 x0.5 (native schaal) 20 {'n': 84, 'recall': 0.99, 'med': 0.62, 'p90': 1.28, 'w10': 1.0, 'w25': 1.0, 'good': 0.99, 'windows': 6, 'contain': np.float64(1.0), 'secs': 11.15}
+E1 M3a crop 640 x0.5 (native schaal) 40 {'n': 107, 'recall': 0.93, 'med': 0.86, 'p90': 1.77, 'w10': 1.0, 'w25': 1.0, 'good': 0.93, 'windows': 5, 'contain': np.float64(1.0), 'secs': 18.28}
+E1 M3b crop 960 x0.5 10 {'n': 45, 'recall': 1.0, 'med': 0.62, 'p90': 1.21, 'w10': 1.0, 'w25': 1.0, 'good': 1.0, 'windows': 6, 'contain': np.float64(1.0), 'secs': 15.0}
+E1 M3b crop 960 x0.5 20 {'n': 84, 'recall': 1.0, 'med': 0.69, 'p90': 1.2, 'w10': 1.0, 'w25': 1.0, 'good': 1.0, 'windows': 6, 'contain': np.float64(1.0), 'secs': 22.72}
+E1 M3b crop 960 x0.5 40 {'n': 107, 'recall': 0.98, 'med': 0.82, 'p90': 1.52, 'w10': 1.0, 'w25': 1.0, 'good': 0.98, 'windows': 5, 'contain': np.float64(1.0), 'secs': 38.7}
+C:\Users\kobev\Documents\semester 1\3APPAI - Deep Learning\CV-Challenge\kobe\match_analyse\experiments\ball_prediction\run_experiments.py:531: RuntimeWarning: All-NaN slice encountered
+  "med": float(np.nanmedian(e)), "p90": float(np.nanpercentile(e, 90)) if errs else float("nan"),
+E1 M3x crop 320 x3 (opgeschaald) 10 {'n': 45, 'recall': 0.0, 'med': nan, 'p90': nan, 'w10': 0.0, 'w25': 0.0, 'good': 0.0, 'windows': 6, 'contain': np.float64(1.0), 'secs': 53.55}
+E1 M3x crop 320 x3 (opgeschaald) 20 {'n': 84, 'recall': 0.0, 'med': nan, 'p90': nan, 'w10': 0.0, 'w25': 0.0, 'good': 0.0, 'windows': 6, 'contain': np.float64(1.0), 'secs': 128.23}
+E1 M3x crop 320 x3 (opgeschaald) 40 {'n': 107, 'recall': 0.0, 'med': nan, 'p90': nan, 'w10': 0.0, 'w25': 0.0, 'good': 0.0, 'windows': 5, 'contain': np.float64(0.85), 'secs': 205.6}
+baseline states: {'detected': 302, 'interp': 119, 'none': 239}
+E2 M0 basis {'detected': 302, 'interp': 119, 'none': 239} gained 0 gt {'vis': 21, 'ok': 14, 'wrong': 1, 'miss': 6, 'neg': 7, 'false': 4}
+E2 M1a interp<=30 {'detected': 302, 'interp': 115, 'none': 243} gained 0 gt {'vis': 21, 'ok': 14, 'wrong': 0, 'miss': 7, 'neg': 7, 'false': 4}
+E2 M1b interp<=60 {'detected': 302, 'interp': 182, 'none': 176} gained 67 gt {'vis': 21, 'ok': 16, 'wrong': 0, 'miss': 5, 'neg': 7, 'false': 5}
+E2 M1c interp60+extrap15 {'detected': 302, 'interp': 182, 'extrap': 64, 'none': 112} gained 127 gt {'vis': 21, 'ok': 17, 'wrong': 1, 'miss': 3, 'neg': 7, 'false': 5}
+E2 M1d interp60+extrap30 decay {'detected': 302, 'interp': 182, 'extrap': 109, 'none': 67} gained 172 gt {'vis': 21, 'ok': 17, 'wrong': 3, 'miss': 1, 'neg': 7, 'false': 7}
+E2 M5a gate-fix {'detected': 332, 'interp': 132, 'none': 196} gained 47 gt {'vis': 21, 'ok': 15, 'wrong': 0, 'miss': 6, 'neg': 7, 'false': 5}
+E2 M5b gate-fix + interp60 + extrap15 {'detected': 332, 'interp': 210, 'extrap': 49, 'none': 69} gained 170 gt {'vis': 21, 'ok': 18, 'wrong': 1, 'miss': 2, 'neg': 7, 'false': 7}
+E2 M2a zwak strak {'detected': 302, 'interp': 116, 'weak': 43, 'none': 199} gained 42 gt {'vis': 21, 'ok': 14, 'wrong': 0, 'miss': 7, 'neg': 7, 'false': 5}
+E2 M2b zwak ruim {'detected': 302, 'interp': 125, 'weak': 68, 'none': 165} gained 77 gt {'vis': 21, 'ok': 15, 'wrong': 0, 'miss': 6, 'neg': 7, 'false': 5}
+E2 M2c zwak size<=60 strak {'detected': 302, 'interp': 116, 'weak': 43, 'none': 199} gained 42 gt {'vis': 21, 'ok': 14, 'wrong': 0, 'miss': 7, 'neg': 7, 'false': 5}
+E2 M2d zwak strak + M1c vulling {'detected': 302, 'interp': 147, 'weak': 43, 'extrap': 58, 'none': 110} gained 129 gt {'vis': 21, 'ok': 17, 'wrong': 1, 'miss': 3, 'neg': 7, 'false': 5}
+E2 M4a template matching {'detected': 302, 'tracker': 273, 'interp': 14, 'none': 71} gained 168 gt {'vis': 21, 'ok': 15, 'wrong': 2, 'miss': 4, 'neg': 7, 'false': 5}
+E2 M4b OpenCV TrackerMIL {'detected': 302, 'tracker': 291, 'interp': 9, 'none': 58} gained 182 gt {'vis': 21, 'ok': 16, 'wrong': 4, 'miss': 1, 'neg': 7, 'false': 6}
+E2 M3a crop 640 x0.5 tau .15 {'detected': 302, 'interp': 138, 'crop': 36, 'extrap': 116, 'none': 68} gained 171 gt {'vis': 21, 'ok': 19, 'wrong': 0, 'miss': 2, 'neg': 7, 'false': 5}
+E2 M3b crop 960 x0.5 tau .15 {'detected': 302, 'interp': 127, 'crop': 42, 'extrap': 116, 'none': 73} gained 166 gt {'vis': 21, 'ok': 19, 'wrong': 0, 'miss': 2, 'neg': 7, 'false': 5}
+E2 M3x crop 320 x3 tau .15 (opgeschaald) {'detected': 302, 'interp': 115, 'extrap': 124, 'none': 119} gained 120 gt {'vis': 21, 'ok': 17, 'wrong': 1, 'miss': 3, 'neg': 7, 'false': 5}
+E2 M3d crop 640 x0.5 tau .15 + gate-fix {'detected': 332, 'interp': 162, 'crop': 20, 'extrap': 116, 'none': 30} gained 209 gt {'vis': 21, 'ok': 19, 'wrong': 1, 'miss': 1, 'neg': 7, 'false': 7}
+E2 M3c crop 640 x0.5 tau .30 {'detected': 302, 'interp': 113, 'crop': 22, 'extrap': 139, 'none': 84} gained 155 gt {'vis': 21, 'ok': 19, 'wrong': 0, 'miss': 2, 'neg': 7, 'false': 5}
+E2 M6 M5 + M2a + M3a(640) + M1c vulling {'detected': 332, 'interp': 242, 'weak': 44, 'crop': 12, 'extrap': 25, 'none': 5}
+done in 1202 s

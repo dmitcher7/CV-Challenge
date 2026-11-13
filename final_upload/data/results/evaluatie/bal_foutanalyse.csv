@@ -1,0 +1,8 @@
+frame,uitkomst,status systeem,kandidaten nabij,hoogste zekerheid
+30,valse bal,interpolated,1,0.065
+240,valse bal,detected,1,0.262
+270,valse bal,interpolated,2,0.076
+300,valse bal,interpolated,0,
+360,gemist,none,0,
+420,gemist,none,0,
+540,verkeerde plek,detected,2,0.51

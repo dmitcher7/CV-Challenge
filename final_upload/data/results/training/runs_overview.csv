@@ -1,0 +1,10 @@
+run_id,persoon,datum,startgewichten,apparaat,beelden_train,beelden_val,validatie,zekerheid_beelden,bron
+kobe_smoke_yolo26s_640,Kobe,2026-10-19,yolo26s (COCO),CPU (Intel Core Ultra 7),47,4,tijdsblok (frames <=494 / >=525),zeker (README),smoke_experiments.csv + README van de smoke test (commit 0e6ad04); geen results.csv bewaard
+cisse_1_yolo26l_1280,Cisse,2026-10-30,yolo26l (COCO),onbekend,onbekend,onbekend,onbekend,onbekend,git 3106772 (afgebroken na 1 epoch)
+brent_1_yolo26m_1600,Brent,2026-10-30,yolo26m (COCO),NVIDIA RTX 4070 Laptop (device 0),47,4,tijdsblok (frames <=494 / >=525),waarschijnlijk (train.txt/val.txt in git op die dag),checkpoint brent/smoke_test/best.pt
+cisse_2_yolo26n_640,Cisse,2026-10-30,yolo26n (COCO),onbekend,118,118,validatie = trainingsbeelden,waarschijnlijk (stand data/ bij commit 9129fa3),git 9129fa3
+kobe_yolo26l_1920,Kobe,2026-10-31,yolo26l (COCO),Intel Arc GPU (xpu),51,23,tijdsblok (notebook_split),zeker (kobe/notebooks/dataset),kobe/notebooks/runs/yolo26l_1920
+brent_2_yolo26m_1600,Brent,2026-11-09,last.pt van brent_1,NVIDIA RTX 4070 Laptop (device 0),86,50,tijdsblok (frames <=494 / >=525),waarschijnlijk (split en instellingen uit commit 2572946),checkpoint kobe/homography/pretrained/brent_v2/best.pt
+cisse_3_yolo26n_640,Cisse,2026-11-13,yolo26n (COCO),onbekend,136,136,validatie = trainingsbeelden,waarschijnlijk (stand data/ bij commit 6172c92),git 6172c92
+cisse_4_final_yolo26l_960,Cisse,2026-11-13,yolo26l (COCO),onbekend (GPU waarschijnlijk),136,136,validatie = trainingsbeelden,zeker (labels.cache in commit ec70a4b),cisse/model/player_training + final_upload/models/psg_vs_inter_CV.pt
+gpu_ball_finetune_1280,Brent (script van Kobe),2026-11-13,psg_vs_inter_CV.pt,NVIDIA RTX 4070 Laptop,59,26,tijdsblok (val = frames 200-245),zeker (datasets/ball_finetune),kobe/match_analyse/gpu/results/2026-11-13_160350

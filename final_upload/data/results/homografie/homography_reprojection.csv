@@ -1,0 +1,40 @@
+frame,n_points,checkable,rmse_m,max_m,worst,hull_frac,n_collinear,good_quad,notes
+0,10,True,0.215,0.407,R_arc_B,0.3865,5,1,5 triples nearly collinear (fine if the rest is spread out)
+30,4,False,0.0,0.0,R_box_T,0.1172,0,1,"4 points: error is always 0, not checkable"
+43,7,True,0.252,0.377,R_box_B,0.3865,1,1,1 triples nearly collinear (fine if the rest is spread out)
+60,5,True,0.118,0.174,R_penalty_spot,0.2029,0,1,
+90,4,False,0.0,0.0,R_box_B,0.2731,0,1,"4 points: error is always 0, not checkable"
+120,4,False,0.0,0.0,R_box_B,0.2731,0,1,"4 points: error is always 0, not checkable"
+150,4,False,0.0,0.0,R_box_B,0.2731,0,1,"4 points: error is always 0, not checkable"
+180,4,False,0.0,0.0,R_box_B,0.2731,0,1,"4 points: error is always 0, not checkable"
+210,5,True,0.144,0.181,centre,0.2731,1,1,1 triples nearly collinear (fine if the rest is spread out)
+226,10,True,0.216,0.387,R_arc_B,0.4049,1,1,1 triples nearly collinear (fine if the rest is spread out)
+240,4,False,0.0,0.0,R_box_B,0.2731,0,1,"4 points: error is always 0, not checkable"
+270,11,True,0.203,0.328,R_goal_area_goal_B,0.2782,7,1,7 triples nearly collinear (fine if the rest is spread out)
+300,7,True,0.235,0.532,corner_TR,0.3347,1,1,1 triples nearly collinear (fine if the rest is spread out)
+314,11,True,0.222,0.35,R_box_T,0.3474,3,1,3 triples nearly collinear (fine if the rest is spread out)
+322,9,True,0.166,0.26,R_box_goal_B,0.3705,3,1,3 triples nearly collinear (fine if the rest is spread out)
+330,5,True,0.14,0.246,R_penalty_spot,0.249,1,1,1 triples nearly collinear (fine if the rest is spread out)
+345,9,True,0.276,0.664,corner_TR,0.3705,2,1,2 triples nearly collinear (fine if the rest is spread out)
+360,9,True,0.14,0.283,R_penalty_spot,0.2118,5,1,5 triples nearly collinear (fine if the rest is spread out)
+390,7,True,0.168,0.281,R_penalty_spot,0.1092,4,1,4 triples nearly collinear (fine if the rest is spread out)
+400,9,True,0.163,0.334,R_box_T,0.1092,5,1,5 triples nearly collinear (fine if the rest is spread out)
+408,10,True,0.173,0.321,R_goal_area_T,0.1092,5,1,5 triples nearly collinear (fine if the rest is spread out)
+420,10,True,0.214,0.507,R_arc_T,0.1092,5,1,5 triples nearly collinear (fine if the rest is spread out)
+433,4,False,0.0,0.0,R_box_T,0.0466,0,1,"4 points: error is always 0, not checkable"
+441,11,True,0.065,0.128,R_goal_area_T,0.1092,8,1,8 triples nearly collinear (fine if the rest is spread out)
+450,5,True,0.078,0.126,R_penalty_spot,0.1092,0,1,
+458,11,True,0.111,0.179,R_goal_area_T,0.1092,8,1,8 triples nearly collinear (fine if the rest is spread out)
+466,9,True,0.079,0.191,R_arc_B,0.1092,4,1,4 triples nearly collinear (fine if the rest is spread out)
+480,11,True,0.141,0.251,R_goal_area_goal_T,0.1092,8,1,8 triples nearly collinear (fine if the rest is spread out)
+488,10,True,0.122,0.21,R_arc_T,0.1092,8,1,8 triples nearly collinear (fine if the rest is spread out)
+497,4,False,0.0,0.0,R_box_goal_T,0.0649,0,1,"4 points: error is always 0, not checkable"
+510,12,True,0.18,0.311,R_goal_area_goal_T,0.1092,14,1,14 triples nearly collinear (fine if the rest is spread out)
+523,10,True,0.098,0.14,R_arc_B,0.1092,14,1,14 triples nearly collinear (fine if the rest is spread out)
+532,8,True,0.19,0.393,corner_TR,0.0943,4,1,4 triples nearly collinear (fine if the rest is spread out)
+540,12,True,0.105,0.177,R_goal_area_goal_B,0.1092,14,1,14 triples nearly collinear (fine if the rest is spread out)
+570,4,False,0.0,0.0,R_box_T,0.0965,0,1,"4 points: error is always 0, not checkable"
+600,7,True,0.132,0.232,R_arc_T,0.1092,4,1,4 triples nearly collinear (fine if the rest is spread out)
+630,11,True,0.181,0.291,R_box_T,0.1092,11,1,11 triples nearly collinear (fine if the rest is spread out)
+646,8,True,0.211,0.414,R_goal_area_T,0.1092,2,1,2 triples nearly collinear (fine if the rest is spread out)
+659,10,True,0.133,0.242,R_arc_T,0.1092,5,1,5 triples nearly collinear (fine if the rest is spread out)

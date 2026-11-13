@@ -1,0 +1,5 @@
+model,parameters,classes
+yolo26n,2572280,80
+yolo26s,10009784,80
+yolo26m,21896248,80
+yolo26l,26299704,80

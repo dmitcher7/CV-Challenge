@@ -1,0 +1,31 @@
+{
+ "data": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\datasets\\ball_finetune\\data.yaml",
+ "status": "klaar",
+ "overlap": {
+  "n_test": 15,
+  "n_train": 85,
+  "n_overlap": 0,
+  "by_frame": 0,
+  "by_hash": 0,
+  "frames": []
+ },
+ "strict_leakage": false,
+ "epochs": 60,
+ "patience": 15,
+ "cls_pw": 0.5,
+ "seed": 0,
+ "imgsz": 1280,
+ "batch": 4,
+ "save_dir": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\gpu\\results\\2026-11-13_160350\\finetune\\train_1280_b4",
+ "epochs_run": 16,
+ "best_epoch": 1,
+ "resumed": false,
+ "val_metrics": {
+  "metrics/precision(B)": 0.9149874186927003,
+  "metrics/recall(B)": 0.9229591836734693,
+  "metrics/mAP50(B)": 0.9400739274864691,
+  "metrics/mAP50-95(B)": 0.46821129001986206
+ },
+ "weights": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-ChallenngeKobe\\match_analyse\\models\\best_ball_ft.pt",
+ "seconds": 1418.8
+}

@@ -1,0 +1,18 @@
+maat,lichaamsklik (22 frames),voetklik (6 frames)
+gelabelde frames,22,6
+personen: TP / FP / FN,512 / 11 / 4,140 / 3 / 0
+precisie,0.979,0.979
+recall,0.992,1.000
+F1,0.986,0.989
+juiste rol,0.992,0.993
+positiefout gemiddeld (m),-,1.09
+positiefout mediaan (m),-,1.03
+positiefout 90e percentiel (m),-,1.77
+"afstand klik-box (boxhoogtes), mediaan",0.127,-
+bal: frames met bal / gevonden,17 / 15,4 / 4
+balfout gemiddeld / mediaan (m),0.74 / 0.26,0.48 / 0.17
+bal binnen 3 m van de klik,0.933,1.000
+frames zonder bal / met valse bal,5 / 4,2 / 1
+balbezit juist,0.773,0.667
+ID-wissels (zie sectie 6),71,36
+IDF1-lite (zie sectie 6),0.581,0.367

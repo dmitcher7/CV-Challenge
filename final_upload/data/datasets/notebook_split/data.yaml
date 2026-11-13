@@ -1,0 +1,12 @@
+# Notebook split (kobe/notebooks): train 0-62 + 525-588, val 200-245, test 600-658.
+# WARNING: all of these frames are part of the 100 frames best.pt was trained on.
+train: train/images
+val: val/images
+test: test/images
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee

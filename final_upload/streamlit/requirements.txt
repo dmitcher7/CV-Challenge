@@ -1,0 +1,13 @@
+# Streamlit-app en scripts van de inleveringsmap. Installeer in een virtuele omgeving met Python 3.11 of nieuwer:
+#   python -m pip install -r requirements.txt
+# (ultralytics haalt torch en torchvision binnen; getest met de versies tussen haakjes)
+ultralytics>=8.3.0        # YOLO26 + ByteTrack (8.4.182)
+opencv-python>=4.9.0.80   # video lezen/schrijven, homografie (5.0.0.93)
+numpy>=1.24.0             # (2.5.4)
+scipy>=1.11.0             # Gaussiaanse heatmaps, Hongaars algoritme in de evaluatie (1.18.1)
+pandas>=2.0.0             # csv's en tabellen (3.1.0)
+matplotlib>=3.7.0         # figuren in analytics/ en in de app (3.11.2)
+imageio-ffmpeg>=0.5.0     # H.264-mp4 schrijven (0.7.0)
+lap>=0.5.12               # lineaire toewijzing voor ByteTrack (0.5.13)
+streamlit>=1.50.0         # de app; de parameter width="stretch" vraagt een recente versie (1.66.1)
+pytest>=8.0.0             # de tests (9.2.0)

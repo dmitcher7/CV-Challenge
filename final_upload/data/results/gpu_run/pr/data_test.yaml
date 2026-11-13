@@ -1,0 +1,10 @@
+names:
+  0: ball
+  1: player_A
+  2: player_B
+  3: player_B_goal_keeper
+  4: referee
+nc: 5
+test: C:\Users\brent\3ACS01\Deep Learning\CV-ChallenngeKobe\match_analyse\datasets\notebook_split\test\images
+train: C:\Users\brent\3ACS01\Deep Learning\CV-ChallenngeKobe\match_analyse\datasets\notebook_split\test\images
+val: C:\Users\brent\3ACS01\Deep Learning\CV-ChallenngeKobe\match_analyse\datasets\notebook_split\test\images
