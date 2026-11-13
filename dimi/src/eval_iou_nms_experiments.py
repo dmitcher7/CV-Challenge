@@ -13,11 +13,15 @@ import pandas as pd
 import numpy as np
 from ultralytics import YOLO
 
-DIMI_DIR = Path(__file__).resolve().parent
-REPO_ROOT = DIMI_DIR.parent
-WEIGHTS_PATH = DIMI_DIR / "runs" / "ball_yolo11_1280" / "weights" / "best.pt"
-DATA_YAML = DIMI_DIR / "data_dimi.yaml"
-OUTPUT_CSV = DIMI_DIR / "iou_nms_benchmark.csv"
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from common import DIMI_DIR, REPO_ROOT, BEST_WEIGHTS, DATA_YAML, BENCHMARK_CSV
+
+WEIGHTS_PATH = BEST_WEIGHTS
+OUTPUT_CSV = BENCHMARK_CSV
 
 CONFIGS = [
     {"name": "Ultra-High Recall", "conf": 0.010, "iou": 0.50},

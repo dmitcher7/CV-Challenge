@@ -498,18 +498,26 @@ Om de optimale balans te vinden tussen precisie, recall en kleine-baldetectie, h
 import pandas as pd
 from pathlib import Path
 
-csv_path = Path("dimi/iou_nms_benchmark.csv")
-if not csv_path.exists():
-    csv_path = Path("../dimi/iou_nms_benchmark.csv")
+csv_path = None
+for p in [
+    Path("dimi/config/iou_nms_benchmark.csv"),
+    Path("../config/iou_nms_benchmark.csv"),
+    Path("config/iou_nms_benchmark.csv"),
+    Path("dimi/iou_nms_benchmark.csv"),
+    Path("../dimi/iou_nms_benchmark.csv")
+]:
+    if p.exists():
+        csv_path = p
+        break
 
-if csv_path.exists():
+if csv_path and csv_path.exists():
     df_bm = pd.read_csv(csv_path)
     print("=== IoU & NMS Benchmark Resultaten (8 Configuraties) ===")
     display_df = df_bm.copy()
     display_df.index = range(1, len(display_df) + 1)
     print(display_df.to_string())
 else:
-    print(f"Benchmark CSV niet gevonden op {csv_path}")
+    print(f"Benchmark CSV niet gevonden.")
 """),
 
     code_cell("""# Vergelijkende Visualisatie van de 8 Configuraties
@@ -649,11 +657,19 @@ import numpy as np
 import cv2
 from pathlib import Path
 
-config_path = Path("dimi/homography_config.json")
-if not config_path.exists():
-    config_path = Path("../dimi/homography_config.json")
+config_path = None
+for p in [
+    Path("dimi/config/homography_config.json"),
+    Path("../config/homography_config.json"),
+    Path("config/homography_config.json"),
+    Path("dimi/homography_config.json"),
+    Path("../dimi/homography_config.json")
+]:
+    if p.exists():
+        config_path = p
+        break
 
-if config_path.exists():
+if config_path and config_path.exists():
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = json.load(f)
     print(f"Beschrijving: {cfg['description']}")

@@ -3,10 +3,16 @@ Run inference on the soccer video with the trained ball & player model.
 Outputs an annotated video with bounding boxes.
 """
 
+import sys
 import argparse
 from pathlib import Path
 import cv2
 from ultralytics import YOLO
+
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from common import VIDEO_PATH, BEST_WEIGHTS, RUNS_DIR, RUN_NAME, pick_device
 

@@ -6,9 +6,16 @@ Generates:
     - dimi/data_dimi.yaml
 """
 
+import sys
+from pathlib import Path
 import re
 from collections import Counter
 import yaml
+
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from common import DATASET_DIR, ROBOFLOW_YAML, DATA_YAML, TRAIN_TXT, VAL_TXT, DIMI_DIR
 

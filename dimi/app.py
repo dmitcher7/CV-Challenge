@@ -20,11 +20,12 @@ st.set_page_config(
 # Robust path resolution within dimi
 DIMI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DIMI_DIR.parent
+CONFIG_DIR = DIMI_DIR / "config"
 VIDEO_RADAR_PATH = DIMI_DIR / "runs" / "tactical_radar_output" / "synced_tactical_radar.mp4"
 HEATMAP_PATH = DIMI_DIR / "runs" / "tactical_radar_output" / "spatial_occupancy_heatmap.png"
-EXPERIMENTS_CSV = DIMI_DIR / "experiments.csv"
-BENCHMARK_CSV = DIMI_DIR / "iou_nms_benchmark.csv"
-CONFIG_PATH = DIMI_DIR / "homography_config.json"
+EXPERIMENTS_CSV = CONFIG_DIR / "experiments.csv" if (CONFIG_DIR / "experiments.csv").exists() else DIMI_DIR / "experiments.csv"
+BENCHMARK_CSV = CONFIG_DIR / "iou_nms_benchmark.csv" if (CONFIG_DIR / "iou_nms_benchmark.csv").exists() else DIMI_DIR / "iou_nms_benchmark.csv"
+CONFIG_PATH = CONFIG_DIR / "homography_config.json" if (CONFIG_DIR / "homography_config.json").exists() else DIMI_DIR / "homography_config.json"
 PITCH_IMG_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch.png"
 REPORT_MD_PATH = DIMI_DIR / "PROJECT_RAPPORT_DEEP_LEARNING.md"
 

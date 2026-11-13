@@ -3,10 +3,16 @@ Evaluate Dimi's trained model on the validation split.
 Displays detailed per-class metrics: Precision, Recall, mAP50, mAP50-95.
 """
 
+import sys
 import argparse
 from pathlib import Path
 import pandas as pd
 from ultralytics import YOLO
+
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from common import DATA_YAML, RUNS_DIR, RUN_NAME, BEST_WEIGHTS, EXPERIMENTS_CSV, pick_device
 

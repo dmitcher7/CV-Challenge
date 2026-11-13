@@ -23,12 +23,14 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-from common import VIDEO_PATH, BEST_WEIGHTS, RUNS_DIR, pick_device
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-DIMI_DIR = Path(__file__).resolve().parent
-REPO_ROOT = DIMI_DIR.parent
-PITCH_IMG_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch.png"
-CONFIG_PATH = DIMI_DIR / "homography_config.json"
+from common import VIDEO_PATH, BEST_WEIGHTS, RUNS_DIR, HOMOGRAPHY_CONFIG, PITCH_IMG_PATH, pick_device, DIMI_DIR
+
+CONFIG_PATH = HOMOGRAPHY_CONFIG
 
 # ==============================================================================
 # OFFICIËLE TEAMKLEUREN & STIJL (BGR Formaat voor OpenCV)

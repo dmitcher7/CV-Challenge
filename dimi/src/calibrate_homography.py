@@ -27,17 +27,20 @@ Toetsen:
 """
 
 import os
+import sys
 import json
 import math
 import cv2
 import numpy as np
 from pathlib import Path
 
-DIMI_DIR = Path(__file__).resolve().parent
-REPO_ROOT = DIMI_DIR.parent
-VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "CV-video.mp4"
-PITCH_IMG_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch.png"
-CONFIG_OUTPUT = DIMI_DIR / "homography_config.json"
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from common import DIMI_DIR, REPO_ROOT, VIDEO_PATH, PITCH_IMG_PATH, HOMOGRAPHY_CONFIG
+
+CONFIG_OUTPUT = HOMOGRAPHY_CONFIG
 
 # Bronresoluties
 CAM_ORIG_W = 1920

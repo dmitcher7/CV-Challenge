@@ -1,25 +1,42 @@
 """Shared paths and helper functions for Dimi's ball detection model."""
 
+import sys
 from pathlib import Path
 import torch
 
-# Folder of this script: CV-Challenge/dimi/
-DIMI_DIR = Path(__file__).resolve().parent
+# Paths: Folder of this script is CV-Challenge/dimi/src/
+SRC_DIR = Path(__file__).resolve().parent
+DIMI_DIR = SRC_DIR.parent
 REPO_ROOT = DIMI_DIR.parent
 
-# Inputs
+CONFIG_DIR = DIMI_DIR / "config"
+DATA_DIR = DIMI_DIR / "data"
+NOTEBOOKS_DIR = DIMI_DIR / "notebooks"
+RUNS_DIR = DIMI_DIR / "runs"
+
+# Ensure src/ is on sys.path for direct imports
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Global Project Inputs
 DATASET_DIR = REPO_ROOT / "data" / "dataset_yolo"
 ROBOFLOW_YAML = DATASET_DIR / "data.yaml"
 VIDEO_PATH = REPO_ROOT / "data" / "raw_video" / "CV-video.mp4"
+PITCH_IMG_PATH = REPO_ROOT / "data" / "pitch_template" / "tactical_pitch.png"
 
-# Outputs inside dimi/
-DATA_YAML = DIMI_DIR / "data_dimi.yaml"
-TRAIN_TXT = DIMI_DIR / "train.txt"
-VAL_TXT = DIMI_DIR / "val.txt"
-RUNS_DIR = DIMI_DIR / "runs"
+# Configurations inside dimi/config/
+DATA_YAML = CONFIG_DIR / "data_dimi.yaml"
+HOMOGRAPHY_CONFIG = CONFIG_DIR / "homography_config.json"
+BENCHMARK_CSV = CONFIG_DIR / "iou_nms_benchmark.csv"
+EXPERIMENTS_CSV = CONFIG_DIR / "experiments.csv"
+
+# Data inside dimi/data/
+TRAIN_TXT = DATA_DIR / "train.txt"
+VAL_TXT = DATA_DIR / "val.txt"
+
+# Model weights and runs
 RUN_NAME = "ball_yolo11_1280"
 BEST_WEIGHTS = RUNS_DIR / RUN_NAME / "weights" / "best.pt"
-EXPERIMENTS_CSV = DIMI_DIR / "experiments.csv"
 
 
 def pick_device():

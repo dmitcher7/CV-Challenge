@@ -4,9 +4,15 @@ Usage:
     python dimi/train_ball.py [--model yolo11s.pt] [--epochs 50] [--batch 8] [--imgsz 1280]
 """
 
+import sys
 import argparse
 from pathlib import Path
 from ultralytics import YOLO
+
+# Ensure src directory is on sys.path
+SRC_DIR = Path(__file__).resolve().parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from common import DATA_YAML, RUNS_DIR, RUN_NAME, DIMI_DIR, pick_device, disable_label_cache
 
