@@ -29,14 +29,14 @@ parser.add_argument("--imgsz", type=int, default=1600 if on_gpu else 640)
 parser.add_argument("--epochs", type=int, default=100 if on_gpu else 10)
 parser.add_argument("--batch", type=int, default=2 if on_gpu else 4)
 parser.add_argument("--patience", type=int, default=20)
-parser.add_argument("--mosaic", type=float, default=0.2)
-parser.add_argument("--close-mosaic", type=int, default=20)
+parser.add_argument("--mosaic", type=float, default=0.0)
+parser.add_argument("--scale", type=float, default=0.2)
 args = parser.parse_args()
 
 print(
     f"device={device} model={args.model} imgsz={args.imgsz} "
     f"epochs={args.epochs} batch={args.batch} patience={args.patience} "
-    f"mosaic={args.mosaic} close_mosaic={args.close_mosaic}"
+    f"mosaic={args.mosaic} scale={args.scale}"
 )
 
 disable_label_cache()  # do not write labels.cache into data/
@@ -50,7 +50,7 @@ model.train(
     batch=args.batch,
     patience=args.patience,
     mosaic=args.mosaic,
-    close_mosaic=args.close_mosaic,
+    scale=args.scale,
     device=device,
     project=str(RUNS_DIR),
     name=RUN_NAME,
