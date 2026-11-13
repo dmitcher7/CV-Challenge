@@ -1,4 +1,4 @@
-"""Combine the multi-class and ball models into a temporally smoothed video."""
+"""Run one multi-class model and temporally smooth its ball detections."""
 
 import argparse
 from pathlib import Path
@@ -7,7 +7,7 @@ import cv2
 import yaml
 from ultralytics import YOLO
 
-from common import BALL_WEIGHTS, BEST_WEIGHTS, RUNS_DIR, RUN_NAME, VIDEO_PATH, pick_device
+from common import BEST_WEIGHTS, RUNS_DIR, RUN_NAME, VIDEO_PATH, pick_device
 from temporal_ball_tracker import BallTracker
 
 # Use the same image size as during training (stored in args.yaml)
@@ -16,14 +16,13 @@ with open(BEST_WEIGHTS.parent.parent / "args.yaml", encoding="utf-8") as f:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--weights", default=str(BEST_WEIGHTS))
-parser.add_argument("--ball-weights", default=str(BALL_WEIGHTS))
 parser.add_argument("--source", default=str(VIDEO_PATH), help="path to the input video")
 parser.add_argument("--imgsz", type=int, default=train_imgsz)
 parser.add_argument("--conf", type=float, default=0.25)
 parser.add_argument("--ball-conf", type=float, default=0.05, help="low candidate threshold before temporal gating")
-parser.add_argument("--ball-init-conf", type=float, default=0.20, help="confidence required to start a ball track")
-parser.add_argument("--track-max-missed", type=int, default=4, help="frames bridged by Kalman prediction")
-parser.add_argument("--track-gate", type=float, default=0.06, help="association radius as fraction of frame diagonal")
+parser.add_argument("--ball-init-conf", type=float, default=0.15, help="confidence required to start a ball track")
+parser.add_argument("--track-max-missed", type=int, default=8, help="frames bridged by Kalman prediction")
+parser.add_argument("--track-gate", type=float, default=0.04, help="association radius as fraction of frame diagonal")
 parser.add_argument("--no-temporal", action="store_true", help="disable ball tracking and smoothing")
 parser.add_argument("--line-width", type=int, default=2)
 parser.add_argument("--font-scale", type=float, default=0.45)
@@ -83,19 +82,12 @@ def draw_detections(frame, detections):
     return frame
 
 
-if not Path(args.ball_weights).is_file():
-    raise FileNotFoundError(
-        f"Dedicated ball weights not found: {args.ball_weights}\n"
-        "Run train_ball.py first."
-    )
-
 device = pick_device()
 model = YOLO(args.weights)
-ball_model = YOLO(args.ball_weights)
 results = model.predict(
     source=args.source,
     imgsz=args.imgsz,
-    conf=args.conf,
+    conf=args.ball_conf,          # keep weak ball candidates; filter other classes below
     device=device,
     stream=True,                  # yield frame by frame -> low memory use
     verbose=False,
@@ -118,31 +110,20 @@ try:
         frame = result.orig_img
         detections = []
 
-        # The multi-class model supplies all classes except ball.
+        ball_candidates = []
         if result.boxes is not None:
             for box in result.boxes:
                 class_id = int(box.cls.item())
                 class_name = result.names[class_id]
+                confidence = float(box.conf.item())
                 if class_name == "ball":
+                    ball_candidates.append((box.xyxy[0].tolist(), confidence))
+                    continue
+                if confidence < args.conf:
                     continue
                 detections.append(
-                    (False, class_name, float(box.conf.item()), box.xyxy[0].tolist(), False)
+                    (False, class_name, confidence, box.xyxy[0].tolist(), False)
                 )
-
-        # The dedicated model can use a low threshold; temporal gating rejects
-        # candidates that are implausibly far from the predicted trajectory.
-        ball_result = ball_model.predict(
-            frame,
-            imgsz=args.imgsz,
-            conf=args.ball_conf,
-            classes=[0],
-            device=device,
-            verbose=False,
-        )[0]
-        ball_candidates = []
-        if ball_result.boxes is not None:
-            for box in ball_result.boxes:
-                ball_candidates.append((box.xyxy[0].tolist(), float(box.conf.item())))
 
         if args.no_temporal:
             tracked_ball = None
