@@ -1,0 +1,10 @@
+# Everything below stays local (the model, the video and generated files are not committed)
+cache/
+output/
+__pycache__/
+.pytest_cache/
+models/*.pt
+data/*.mp4
+gpu/results/
+gpu/unseen_frames/
+datasets/**/*.cache

@@ -1,0 +1,11 @@
+# Ball fine-tune data: the Roboflow frames split by time block (no neighbouring frames across splits).
+# train = frames < 200 and 246..599, val = 200..245; frames >= 600 (notebook test) are left out.
+train: train/images
+val: val/images
+nc: 5
+names:
+- ball
+- player_A
+- player_B
+- player_B_goal_keeper
+- referee

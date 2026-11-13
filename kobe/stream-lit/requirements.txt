@@ -1,0 +1,8 @@
+# Extra packages for the Streamlit app, on top of the root requirements.txt
+#   venv\Scripts\pip install -r requirements.txt -r kobe\stream-lit\requirements.txt
+streamlit>=1.35.0
+# sv.ByteTrack was removed in supervision 0.31 (moved to the separate 'trackers' package)
+supervision>=0.22.0,<0.31
+# ffmpeg binary for H.264 video that plays in the browser (OpenCV's mp4v does not)
+imageio-ffmpeg>=0.5.0
+pandas>=2.0.0
