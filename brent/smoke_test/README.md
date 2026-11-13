@@ -26,10 +26,11 @@ so training and inference run on the **GPU**.
 | 2. Split | `.\.venv\Scripts\python smoke_test\make_split.py` | `train.txt`, `val.txt`, `data_smoke.yaml` |
 | 3. Train | `.\.venv\Scripts\python smoke_test\train_smoke.py` | `runs/smoke/` |
 | 4. Evaluate | `.\.venv\Scripts\python smoke_test\eval_smoke.py` | table + `runs/smoke_val/` + row in `experiments.csv` |
-| 5. Video | `.\.venv\Scripts\python smoke_test\predict_video.py` | `runs/smoke_predict/match.avi` (Windows writes `.avi`) |
+| 5. Video | `.\.venv\Scripts\python smoke_test\predict_video.py` | `runs/smoke_predict/CV-video (1).avi` |
 
-`train_smoke.py` accepts `--model --imgsz --epochs --batch` (defaults: CPU 640/10/4, GPU 1280/50/8;
-model `yolo26s.pt` when ultralytics ≥ 8.4, else `yolo11s.pt`). `eval_smoke.py` and `predict_video.py`
+`train_smoke.py` accepts `--model --imgsz --epochs --batch --patience --mosaic --scale`
+(GPU defaults: YOLO26m, 1600/100/2, patience 20, mosaic 0.0, scale 0.2; CPU uses 640/10/4).
+With ultralytics older than 8.4, the model falls back to `yolo11m.pt`. `eval_smoke.py` and `predict_video.py`
 read `imgsz` from `runs/smoke/args.yaml`, so they always use the training resolution.
 
 `common.py` holds the shared paths. It also turns off ultralytics' `labels.cache`, which would otherwise
@@ -39,18 +40,22 @@ be written into `data/dataset_yolo/train/` (we never modify `data/`).
 
 train = frame idx 0–494 · gap = 495–524 (never used) · val = 525–659
 
-Result on the current export:
+Result on the current export for the fully annotated multi-class split:
 
 | class | train | val |
 |---|---:|---:|
-| ball | 42 | 4 |
-| player_A | 469 | 40 |
-| player_B | 468 | 40 |
-| player_B_goal_keeper | 45 | 4 |
-| referee | 174 | 4 |
-| **images** | **47** | **4** |
+| ball | 76 | 29 |
+| player_A | 858 | 493 |
+| player_B | 858 | 490 |
+| player_B_goal_keeper | 84 | 50 |
+| referee | 313 | 54 |
+| **images** | **86** | **50** |
 
-No images without labels, no frames in the gap.
+All 136 exported images are fully annotated. `predict_video.py` runs the single multi-class checkpoint
+at a low candidate threshold for the ball while keeping a higher threshold for all other classes. A
+single-target constant-velocity Kalman filter (the relevant core of SORT) associates ball candidates,
+smooths their location and bridges at most eight missed frames. This is preferable to a moving average
+here because it does not lag as much when the ball changes speed.
 
 ## Output files explained
 
