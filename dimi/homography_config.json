@@ -1,170 +1,117 @@
 {
-    "description": "16-Puntige Geijkte Witte Veldlijnen Homografie voor 2D FIFA Minimap (CV-Challenge)",
-    "num_points": 16,
+    "description": "Geijkte Veldlijnen Homografie (10 punten) door Dmitrij",
+    "num_points": 10,
+    "mean_reprojection_error_px": 2.7663213888639975,
     "camera_points": [
         [
-            506.20001220703125,
-            227.89999389648438
+            504.0,
+            468.0
         ],
         [
-            518.5999755859375,
-            485.1000061035156
+            483.0,
+            252.0
         ],
         [
-            523.9000244140625,
-            595.2999877929688
+            549.0,
+            927.0
         ],
         [
-            529.5,
-            710.5
+            1536.0,
+            378.0
         ],
         [
-            544.7000122070312,
-            1024.800048828125
+            1248.0,
+            267.0
+        ],
+        [
+            1659.0,
+            567.0
         ],
         [
             1740.0,
-            335.0
+            330.0
         ],
         [
-            1843.0,
-            384.0
+            1839.0,
+            378.0
         ],
         [
-            1791.5,
-            359.5
+            498.0,
+            390.0
         ],
         [
-            877.2999877929688,
-            955.0
-        ],
-        [
-            1178.800048828125,
-            882.7999877929688
-        ],
-        [
-            1456.0,
-            816.4000244140625
-        ],
-        [
-            1711.699951171875,
-            755.0999755859375
-        ],
-        [
-            763.5999755859375,
-            205.1999969482422
-        ],
-        [
-            1006.2000122070312,
-            172.89999389648438
-        ],
-        [
-            1233.0999755859375,
-            142.8000030517578
-        ],
-        [
-            1564.199951171875,
-            400.0
+            510.0,
+            549.0
         ]
     ],
     "minimap_points": [
         [
             525.0,
+            340.0
+        ],
+        [
+            525.0,
             20.0
         ],
         [
             525.0,
-            248.0
-        ],
-        [
-            525.0,
-            339.0
-        ],
-        [
-            525.0,
-            430.0
-        ],
-        [
-            525.0,
-            658.0
-        ],
-        [
-            1030.0,
-            304.70001220703125
-        ],
-        [
-            1030.0,
-            373.29998779296875
-        ],
-        [
-            1030.0,
-            339.0
-        ],
-        [
-            625.0,
-            658.0
-        ],
-        [
-            725.0,
-            658.0
-        ],
-        [
-            825.0,
-            658.0
+            660.0
         ],
         [
             925.0,
-            658.0
+            340.0
         ],
         [
-            625.0,
-            20.0
+            872.0,
+            150.0
         ],
         [
-            725.0,
-            20.0
+            872.0,
+            529.0
         ],
         [
-            825.0,
-            20.0
+            1030.0,
+            303.4
         ],
         [
-            925.0,
-            339.0
+            1030.0,
+            376.6
+        ],
+        [
+            525.0,
+            248.5
+        ],
+        [
+            525.0,
+            431.5
         ]
     ],
     "point_labels": [
-        "P01: Middellijn boven (Snijpunt bovenste zijlijn)",
-        "P02: Middencirkel snijpunt boven (Middellijn kruist middencirkel bovenaan)",
-        "P03: Middenstip (Centrum speelveld)",
-        "P04: Middencirkel snijpunt onder (Middellijn kruist middencirkel onderaan)",
-        "P05: Middellijn onder (Snijpunt onderste zijlijn)",
-        "P06: Rechter doellijn - Basis bovenste doelpaal",
-        "P07: Rechter doellijn - Basis onderste doelpaal",
-        "P08: Rechter doellijn - Doelcentrum op de lijn",
-        "P09: Onderste zijlijn - Veldmarkering X=625 (100m rechts van middellijn)",
-        "P10: Onderste zijlijn - Veldmarkering X=725 (200m rechts van middellijn)",
-        "P11: Onderste zijlijn - Veldmarkering X=825 (300m rechts van middellijn)",
-        "P12: Onderste zijlijn - Veldmarkering X=925 (400m rechts van middellijn)",
-        "P13: Bovenste zijlijn - Veldmarkering X=625 (100m rechts van middellijn)",
-        "P14: Bovenste zijlijn - Veldmarkering X=725 (200m rechts van middellijn)",
-        "P15: Bovenste zijlijn - Veldmarkering X=825 (300m rechts van middellijn)",
-        "P16: Rechter strafschopstip (11m stip voor doel)"
+        "1. Middenstip -> Cam: (504.0, 468.0) | Pitch: (525.0, 340.0)",
+        "2. Middellijn Boven -> Cam: (483.0, 252.0) | Pitch: (525.0, 20.0)",
+        "3. Middellijn Onder -> Cam: (549.0, 927.0) | Pitch: (525.0, 660.0)",
+        "4. Rechter Penaltystip (11m) -> Cam: (1536.0, 378.0) | Pitch: (925.0, 340.0)",
+        "5. Rechter 16m Hoek Boven -> Cam: (1248.0, 267.0) | Pitch: (872.0, 150.0)",
+        "6. Rechter 16m Hoek Onder -> Cam: (1659.0, 567.0) | Pitch: (872.0, 529.0)",
+        "7. Rechter Doelpaal Boven -> Cam: (1740.0, 330.0) | Pitch: (1030.0, 303.4)",
+        "8. Rechter Doelpaal Onder -> Cam: (1839.0, 378.0) | Pitch: (1030.0, 376.6)",
+        "9. Middencirkel Boven -> Cam: (498.0, 390.0) | Pitch: (525.0, 248.5)",
+        "10. Middencirkel Onder -> Cam: (510.0, 549.0) | Pitch: (525.0, 431.5)"
     ],
     "homography_matrix": [
         [
-            0.33184108464460593,
-            0.15965660831746586,
-            341.8523391874844
+            0.9418598912143447,
+            1.6076969831007575,
+            112.21012363194542
         ],
         [
-            0.13826400362334665,
-            1.0541989475420752,
-            -300.1014183759608
+            0.26756566341450544,
+            3.876962274933354,
+            -1071.4730754912732
         ],
         [
-            -9.020060131663925e-05,
-            0.0003531150595946061,
+            8.670721113974235e-05,
+            0.0032193347094621374,
             1.0
         ]
     ]
