@@ -49,7 +49,7 @@ with st.sidebar:
 
 # Header
 st.title("Sports Vision & Tactical Mapping Dashboard")
-st.subheader("End-to-End Computer Vision: YOLO11s Multi-Scale Detectie, 10-Punt Homografie & Invariant Tracking")
+st.subheader("End-to-End Computer Vision: YOLO26s Multi-Scale Detectie, 10-Punt Homografie & Invariant Tracking")
 st.caption("Auteur: Dmitrij Tchervonisjenko | Team: Git Push and Pray | Thomas More Geel")
 
 st.markdown("---")
@@ -67,7 +67,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("Synchrone 2D Minimap Radar & Broadcast Video")
     st.write(
-        "Links: originele broadcast videostream (1920x1080, 30 fps) met multi-scale YOLO11s detecties voor spelers en de bal. "
+        "Links: originele broadcast videostream (1920x1080, 30 fps) met multi-scale YOLO26s detecties voor spelers en de bal. "
         "Rechts: synchroon geprojecteerde 2D tactische radar via onze 10-punts RANSAC perspectief-homografie."
     )
 

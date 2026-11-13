@@ -35,7 +35,7 @@ TRAIN_TXT = DATA_DIR / "train.txt"
 VAL_TXT = DATA_DIR / "val.txt"
 
 # Model weights and runs
-RUN_NAME = "ball_yolo11_1280"
+RUN_NAME = "ball_yolo26_1280"
 BEST_WEIGHTS = RUNS_DIR / RUN_NAME / "weights" / "best.pt"
 
 

@@ -5,7 +5,7 @@
 **Team:** Git Push and Pray (Dmitrij Tchervonisjenko, Kobe Vandenberk, Cisse Vandeweyer, Brent Van Gelder)  
 **Opleiding:** Thomas More Geel – Academiejaar 3 (Semester 1)  
 **Vak:** Deep Learning & Computer Vision  
-**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Python 3.13, Ultralytics YOLO11, OpenCV, Streamlit  
+**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Python 3.13, Ultralytics YOLO26, OpenCV, Streamlit  
 
 ---
 
@@ -184,7 +184,7 @@ Elke piramidelaag heeft zijn eigen predictiekop met een specifiek receptief veld
 
 ### 3.5 Post-Processing: Non-Maximum Suppression (NMS) & DFL
 - **NMS:** Sorteert alle predicties op confidence, behoudt de hoogste, en verwijdert alle overlappende boxen met $\text{IoU} > \text{threshold}$.
-- **Distribution Focal Loss (DFL):** In plaats van een vast getal voorspelt YOLOv11 een continue waarschijnlijkheidsverdeling voor elke boxrand, wat resulteert in strakkere lokalisatie bij occlusie.
+- **Distribution Focal Loss (DFL):** In plaats van een vast getal voorspelt YOLO26 een continue waarschijnlijkheidsverdeling voor elke boxrand, wat resulteert in strakkere lokalisatie bij occlusie.
 
 ### 3.6 mAP Ontrafeld ("Mean of Averages") [EXAMEN VRAAG]
 Waarom heet het *Mean Average Precision* als *Mean* en *Average* hetzelfde betekenen?

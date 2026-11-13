@@ -4,7 +4,7 @@
 **Student:** Dmitrij Tchervonisjenko  
 **Team:** Git Push and Pray (Dmitrij Tchervonisjenko, Kobe Vandenberk, Cisse Vandeweyer, Brent Van Gelder)  
 **Opleiding:** Thomas More Geel — 3e Jaar Deep Learning & Computer Vision  
-**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Ultralytics YOLO11, OpenCV, Streamlit
+**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Ultralytics YOLO26, OpenCV, Streamlit
 
 ---
 
@@ -62,7 +62,7 @@ dimi/
 │   └── gecalibreerde_punten_visueel.jpg # Visuele verificatie van calibratiepunten
 │
 ├── runs/                               # Alle trainingsartefacten en media-outputs
-│   ├── ball_yolo11_1280/               # Modelgewichten (weights/best.pt), curves & confusion matrix
+│   ├── ball_yolo26_1280/               # Modelgewichten (weights/best.pt), curves & confusion matrix
 │   └── tactical_radar_output/          # Output video (synced_tactical_radar.mp4) & heatmap
 │
 └── labels/                             # Roboflow annotatielabels

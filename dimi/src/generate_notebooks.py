@@ -64,7 +64,7 @@ nb1_cells = [
 **Team:** Git Push and Pray  
 **Auteur:** Dmitrij Tchervonisjenko (met Kobe Vandenberk, Cisse Vandeweyer, Brent Van Gelder)  
 **Vak:** Deep Learning & Computer Vision (3e Jaar)  
-**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Ultralytics YOLO11
+**Hardware & Stack:** NVIDIA GeForce RTX 4070 Laptop GPU (8GB VRAM), CUDA 12.4, PyTorch 2.6, Ultralytics YOLO26
 
 ---
 
@@ -205,7 +205,7 @@ Adam combineert twee ideeën:
 $$w_{t+1} = w_t - \\frac{\\eta}{\\sqrt{\\hat{v}_t} + \\epsilon} \\hat{m}_t$$
 
 **Belangrijke nuance (Adam vs. AdamW):**
-In standaard Adam wordt $L_2$-regularisatie foutief vermengd met de gradiënt, waardoor parameters met grote historische gradiënten onevenredig weinig gewichtsverval krijgen. **AdamW** ontkoppelt *weight decay* van de gradiëntupdate, wat zorgt voor drastisch betere generalisatie in moderne vision modellen zoals YOLO11."""),
+In standaard Adam wordt $L_2$-regularisatie foutief vermengd met de gradiënt, waardoor parameters met grote historische gradiënten onevenredig weinig gewichtsverval krijgen. **AdamW** ontkoppelt *weight decay* van de gradiëntupdate, wat zorgt voor drastisch betere generalisatie in moderne vision modellen zoals YOLO26."""),
 
     md_cell("""---
 ## 7. Batch Size & Stochastische Ruis
@@ -229,7 +229,7 @@ Het signaal sterft volledig uit! De vroege lagen leren letterlijk niets meer (*v
 * **ReLU (Rectified Linear Unit):**
   $$\\text{ReLU}(x) = \\max(0, x)$$
   De afgeleide is voor alle positieve inputs exact **$1$**. Er treedt geen verzadiging op, waardoor gradiënten zonder signaalverlies over tientallen convolutionele lagen heen kunnen stromen.
-* **SiLU / Swish:** In YOLO11 wordt $x \\cdot \\sigma(x)$ gebruikt, wat een gladde gradiëntovergang garandeert rond 0.
+* **SiLU / Swish:** In YOLO26 wordt $x \\cdot \\sigma(x)$ gebruikt, wat een gladde gradiëntovergang garandeert rond 0.
 
 ### 8.3 Batch Normalization
 Tijdens training veranderen de gewichten van eerdere lagen continu, waardoor de verdeling van de invoer voor diepere lagen voortdurend verschuift (*Internal Covariate Shift*).
@@ -312,7 +312,7 @@ In Feature Pyramid Networks (FPN) en segmentatie-decoders moeten laag-dimensiona
     md_cell("""---
 ## 11. Praktische Training Walkthrough & Visualisatie van Trainingscurves
 
-Hieronder inspecteren en visualiseren we de werkelijke trainingslogboeken (`results.csv`) van onze YOLO11s training op de RTX 4070 GPU over 30 epochs."""),
+Hieronder inspecteren en visualiseren we de werkelijke trainingslogboeken (`results.csv`) van onze YOLO26s training op de RTX 4070 GPU over 30 epochs."""),
 
     code_cell("""# Visualiseer de Trainings- en Validatieverliezen over de Epochs
 import pandas as pd
@@ -321,11 +321,11 @@ import seaborn as sns
 from pathlib import Path
 
 # Zoek naar results.csv
-csv_path = Path("dimi/runs/ball_yolo11_1280/results.csv")
+csv_path = Path("dimi/runs/ball_yolo26_1280/results.csv")
 if not csv_path.exists():
-    csv_path = Path("../dimi/runs/ball_yolo11_1280/results.csv")
+    csv_path = Path("../dimi/runs/ball_yolo26_1280/results.csv")
 if not csv_path.exists():
-    csv_path = Path("runs/ball_yolo11_1280/results.csv")
+    csv_path = Path("runs/ball_yolo26_1280/results.csv")
 
 if csv_path.exists():
     df_results = pd.read_csv(csv_path)

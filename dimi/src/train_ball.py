@@ -1,7 +1,7 @@
 """
-Train YOLO on the RTX 4070 GPU with imgsz=1280 to detect the ball.
+Train YOLO26 on the RTX 4070 GPU with imgsz=1280 to detect the ball.
 Usage:
-    python dimi/train_ball.py [--model yolo11s.pt] [--epochs 50] [--batch 8] [--imgsz 1280]
+    python dimi/src/train_ball.py [--model yolo26s.pt] [--epochs 50] [--batch 8] [--imgsz 1280]
 """
 
 import sys
@@ -18,7 +18,7 @@ from common import DATA_YAML, RUNS_DIR, RUN_NAME, DIMI_DIR, pick_device, disable
 
 def main():
     parser = argparse.ArgumentParser(description="Train YOLO specifically tuned for ball detection.")
-    parser.add_argument("--model", type=str, default="yolo11s.pt", help="Pretrained YOLO model (e.g. yolo11s.pt, yolo11m.pt)")
+    parser.add_argument("--model", type=str, default="yolo26s.pt", help="Pretrained YOLO model (e.g. yolo26s.pt, yolo26m.pt)")
     parser.add_argument("--imgsz", type=int, default=1600, help="High resolution (1600 for sharp small object detection)")
     parser.add_argument("--epochs", type=int, default=45, help="Number of training epochs")
     parser.add_argument("--batch", type=int, default=4, help="Batch size (4 fits comfortably at 1600p on 8GB GPU)")
