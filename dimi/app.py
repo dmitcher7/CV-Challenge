@@ -21,8 +21,10 @@ st.set_page_config(
 DIMI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DIMI_DIR.parent
 CONFIG_DIR = DIMI_DIR / "config"
-VIDEO_RADAR_PATH = DIMI_DIR / "runs" / "tactical_radar_output" / "synced_tactical_radar.mp4"
-HEATMAP_PATH = DIMI_DIR / "runs" / "tactical_radar_output" / "spatial_occupancy_heatmap.png"
+RUNS_DIR = DIMI_DIR / "runs"
+RUN_NAME = "ball_yolo26_1280" if (RUNS_DIR / "ball_yolo26_1280").exists() else "ball_yolo11_1280"
+VIDEO_RADAR_PATH = RUNS_DIR / "tactical_radar_output" / "synced_tactical_radar.mp4"
+HEATMAP_PATH = RUNS_DIR / "tactical_radar_output" / "spatial_occupancy_heatmap.png"
 EXPERIMENTS_CSV = CONFIG_DIR / "experiments.csv" if (CONFIG_DIR / "experiments.csv").exists() else DIMI_DIR / "experiments.csv"
 BENCHMARK_CSV = CONFIG_DIR / "iou_nms_benchmark.csv" if (CONFIG_DIR / "iou_nms_benchmark.csv").exists() else DIMI_DIR / "iou_nms_benchmark.csv"
 CONFIG_PATH = CONFIG_DIR / "homography_config.json" if (CONFIG_DIR / "homography_config.json").exists() else DIMI_DIR / "homography_config.json"
