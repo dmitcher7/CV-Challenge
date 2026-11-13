@@ -1,13 +1,14 @@
 """
-IoU en NMS Experimenten Benchmark.
+IoU en NMS Experimenten Benchmark voor YOLO26s.
 Auteur: Dmitrij Tchervonisjenko (Team Git Push and Pray)
 Thomas More Geel - Deep Learning & Computer Vision
 
-Vergelijkt systematisch verschillende Confidence (conf) en NMS IoU drempelwaarden
+Vergelijkt systematisch 18 verschillende Confidence (conf) en NMS IoU drempelwaarden
 om de optimale F1-score, Precision-Recall balans en mAP@50/mAP@50-95 te bepalen.
 """
 
 import sys
+import shutil
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -24,21 +25,33 @@ WEIGHTS_PATH = BEST_WEIGHTS
 OUTPUT_CSV = BENCHMARK_CSV
 
 CONFIGS = [
-    {"name": "Ultra-High Recall", "conf": 0.010, "iou": 0.50},
-    {"name": "Ball-Optimized (Tight NMS)", "conf": 0.025, "iou": 0.50},
-    {"name": "Ball-Optimized WINNER (Balanced NMS)", "conf": 0.025, "iou": 0.60},
-    {"name": "Ball-Optimized (Permissive NMS)", "conf": 0.025, "iou": 0.70},
-    {"name": "Medium Confidence", "conf": 0.050, "iou": 0.60},
-    {"name": "Conservative", "conf": 0.100, "iou": 0.60},
-    {"name": "YOLO Default Baseline", "conf": 0.250, "iou": 0.60},
-    {"name": "High Precision / Strict", "conf": 0.250, "iou": 0.70},
+    {"name": "Ultra-Low (0.005, 0.50)", "conf": 0.005, "iou": 0.50},
+    {"name": "Ultra-Low WINNER mAP50 (0.005, 0.60)", "conf": 0.005, "iou": 0.60},
+    {"name": "Ultra-Low WINNER mAP50-95 (0.005, 0.70)", "conf": 0.005, "iou": 0.70},
+    {"name": "Ultra-High Recall (0.010, 0.50)", "conf": 0.010, "iou": 0.50},
+    {"name": "Ultra-High Recall (0.010, 0.60)", "conf": 0.010, "iou": 0.60},
+    {"name": "Ultra-High Recall (0.010, 0.70)", "conf": 0.010, "iou": 0.70},
+    {"name": "Ball-Tuned (0.015, 0.50)", "conf": 0.015, "iou": 0.50},
+    {"name": "Ball-Tuned (0.015, 0.60)", "conf": 0.015, "iou": 0.60},
+    {"name": "Ball-Tuned (0.015, 0.65)", "conf": 0.015, "iou": 0.65},
+    {"name": "Ball-Tuned (0.020, 0.55)", "conf": 0.020, "iou": 0.55},
+    {"name": "Ball-Tuned (0.020, 0.60)", "conf": 0.020, "iou": 0.60},
+    {"name": "Ball-Optimized (0.025, 0.60)", "conf": 0.025, "iou": 0.60},
+    {"name": "Ball-Optimized Permissive NMS (0.025, 0.70)", "conf": 0.025, "iou": 0.70},
+    {"name": "Medium Confidence (0.050, 0.60)", "conf": 0.050, "iou": 0.60},
+    {"name": "Conservative (0.100, 0.60)", "conf": 0.100, "iou": 0.60},
+    {"name": "Standard YOLO Baseline (0.250, 0.60)", "conf": 0.250, "iou": 0.60},
+    {"name": "High Precision Strict (0.250, 0.70)", "conf": 0.250, "iou": 0.70},
+    {"name": "High Confidence Baseline (0.500, 0.60)", "conf": 0.500, "iou": 0.60},
 ]
 
 
 def run_benchmark():
-    print("=" * 70)
-    print("🚀 STARTING IoU & NMS BENCHMARK EXPERIMENTEN (RTX 4070 GPU)")
-    print("=" * 70)
+    print("=" * 80)
+    print("START IoU & NMS BENCHMARK EXPERIMENTEN OP DE RTX 4070 GPU")
+    print(f"Model: {WEIGHTS_PATH}")
+    print(f"Aantal te testen configuraties: {len(CONFIGS)}")
+    print("=" * 80)
 
     if not WEIGHTS_PATH.exists():
         raise FileNotFoundError(f"Model weights niet gevonden op: {WEIGHTS_PATH}")
@@ -46,13 +59,15 @@ def run_benchmark():
     model = YOLO(str(WEIGHTS_PATH))
     results = []
 
-    for cfg in CONFIGS:
-        print(f"\n[RUN] Testen: {cfg['name']} (conf={cfg['conf']}, iou={cfg['iou']})...")
+    for i, cfg in enumerate(CONFIGS, 1):
+        print(f"\n[{i:02d}/{len(CONFIGS)}] Testen: {cfg['name']} (conf={cfg['conf']}, iou={cfg['iou']})...")
         metrics = model.val(
             data=str(DATA_YAML),
             imgsz=1280,
             conf=cfg["conf"],
             iou=cfg["iou"],
+            batch=16,
+            workers=0,
             device="cuda",
             verbose=False,
             plots=False
@@ -64,9 +79,8 @@ def run_benchmark():
         map50_95 = float(metrics.box.map)
         f1 = 2 * (p * r) / (p + r) if (p + r) > 0 else 0.0
 
-        # Bal klasse (index 0)
-        class_maps = metrics.box.maps
-        ball_map50 = float(class_maps[0]) if len(class_maps) > 0 else 0.0
+        ball_map50 = float(metrics.box.all_ap[0, 0]) if hasattr(metrics.box, 'all_ap') else 0.0
+        ball_map50_95 = float(metrics.box.maps[0]) if len(metrics.box.maps) > 0 else 0.0
 
         row = {
             "Config Name": cfg["name"],
@@ -78,22 +92,32 @@ def run_benchmark():
             "mAP@50": round(map50, 4),
             "mAP@50-95": round(map50_95, 4),
             "Ball mAP@50": round(ball_map50, 4),
+            "Ball mAP@50-95": round(ball_map50_95, 4),
         }
         results.append(row)
-        print(f"  -> P={p:.3f} | R={r:.3f} | F1={f1:.3f} | mAP@50={map50:.3f} | Ball mAP@50={ball_map50:.3f}")
+        print(f"  -> P={p:.4f} | R={r:.4f} | F1={f1:.4f} | mAP@50={map50:.4f} | mAP@50-95={map50_95:.4f} | Ball mAP@50={ball_map50:.4f}")
+
+    # Ruim eventuele tijdelijke runs op
+    root_runs = Path("runs")
+    if root_runs.exists():
+        shutil.rmtree(root_runs, ignore_errors=True)
 
     df = pd.DataFrame(results)
     df.to_csv(OUTPUT_CSV, index=False)
-    print("\n" + "=" * 70)
-    print(f"✅ BENCHMARK VOLTOOID! Opgeslagen in: {OUTPUT_CSV}")
-    print("=" * 70)
+    print("\n" + "=" * 80)
+    print(f"BENCHMARK VOLTOOID! Opgeslagen in: {OUTPUT_CSV}")
+    print("=" * 80)
     print(df.to_string(index=False))
 
     # Bepaal winnaar
-    winner = df.loc[df["F1-Score"].idxmax()]
-    print("\n🏆 WINNAAR OP BASIS VAN HARMONISCHE F1-SCORE & BAL RECALL:")
-    print(f"Configuratie: {winner['Config Name']}")
-    print(f"Conf={winner['Conf Threshold']} | IoU={winner['IoU Threshold']} | F1={winner['F1-Score']} | mAP50={winner['mAP@50']}")
+    winner_map50 = df.loc[df["mAP@50"].idxmax()]
+    winner_f1 = df.loc[df["F1-Score"].idxmax()]
+    winner_map = df.loc[df["mAP@50-95"].idxmax()]
+
+    print("\nOVERZICHT TOP CONFIGURATIES:")
+    print(f"1. Hoogste mAP@50:    {winner_map50['mAP@50']} ({winner_map50['Config Name']} | conf={winner_map50['Conf Threshold']}, iou={winner_map50['IoU Threshold']})")
+    print(f"2. Hoogste mAP@50-95: {winner_map['mAP@50-95']} ({winner_map['Config Name']} | conf={winner_map['Conf Threshold']}, iou={winner_map['IoU Threshold']})")
+    print(f"3. Hoogste F1-Score:  {winner_f1['F1-Score']} ({winner_f1['Config Name']})")
 
 
 if __name__ == "__main__":

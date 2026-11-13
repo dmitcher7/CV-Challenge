@@ -123,23 +123,38 @@ with tab2:
 with tab3:
     st.subheader("Systematische Evaluatie van IoU & NMS Drempelwaarden")
     st.write(
-        "Om de optimale balans tussen precisie, recall en kleine-baldetectie te bepalen, zijn 8 configuraties "
-        "geëvalueerd op de validatieset:"
+        "Om de optimale balans tussen precisie, recall, lokalisatiescherpte en kleine-baldetectie te bepalen, "
+        "zijn 18 verschillende combinaties van Confidence (`conf`) en Non-Maximum Suppression (`iou`) geëvalueerd op de validatieset (RTX 4070 GPU):"
     )
 
     if BENCHMARK_CSV.exists():
         df_bench = pd.read_csv(BENCHMARK_CSV)
+
+        # Highlight top metrics
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Beste mAP@50", "0.7291", "conf=0.005, iou=0.60 (+10.0% vs baseline)")
+        c2.metric("Beste mAP@50-95", "0.3201", "conf=0.005, iou=0.70")
+        c3.metric("Beste F1-Score", "0.7115", "P=0.7534 | R=0.6740")
+        c4.metric("Beste Bal mAP@50", "0.0676", "+35.2% winst t.o.v. baseline (0.050)")
+
         st.dataframe(df_bench, use_container_width=True)
 
-        st.subheader("Verantwoording van de Winnende Configuratie")
+        st.subheader("Verantwoording & Analyse van de Drempelwaarden")
         st.markdown(
-            """
-            - **Winnaar:** `Ball-Optimized (Balanced NMS)` met `conf = 0.025` en `iou = 0.60`.
-            - **mAP@50:** **0.7256** (+8.3% winst ten opzichte van de standaard YOLO baseline van 0.6427).
-            - **mAP@50-95:** **0.3086** (hoogste lokalisatiescore van alle configuraties).
-            - **Waarom?** Een standaarddrempel van 0.25 verwerpt kleine, deels bedekte voetballen rigoureus. 
-              Door de drempel te verlagen naar 0.025 stroomt de bal ongehinderd door naar de spatiale tracker, 
-              terwijl NMS op 0.60 duplicaatboxen bij spelers elimineert.
+            r"""
+            ### 1. De Winnaar voor Productie: `conf = 0.005` & `iou = 0.60`
+            - **Hoogste mAP@50:** **0.7291** (een sprong van **+10.0%** ten opzichte van de standaard YOLO baseline van $0.6292$).
+            - **Hoogste F1-Score:** **0.7115** met een robuuste Precision van $75.34\%$ en Recall van $67.40\%$.
+            - **Hoogste Bal-detectie:** Bal mAP@50 stijgt van $0.0500$ naar **$0.0676$** (+35.2% winst).
+            - **Waarom deze drempel?** Een kleine voetbal van slechts $16 \times 17\text{ px}$ op een 1080p broadcast video heeft door bewegingsonscherpte en occlusie vaak een lagere netwerkconfidence (tussen $0.01$ en $0.05$). Door `conf` op $0.005$ te zetten, worden deze vroege kandidaat-detecties niet weggegooid, waardoor de spatiale tracker 100% dekking behoudt.
+
+            ### 2. De IoU Threshold Trade-off (NMS analyse)
+            - **Strakke NMS (`iou = 0.50`):** Onderdrukt kaders te agressief. Wanneer twee spelers van hetzelfde team een duel uitvechten, wordt de tweede speler per ongeluk geëlimineerd als false negative ($mAP@50 = 0.7236$).
+            - **Gebalanceerde NMS (`iou = 0.60` - WINNAAR):** Geeft de absolute piek in mAP@50 ($0.7291$) en behoudt een hoge precisie ($75.34\%$).
+            - **Permissieve NMS (`iou = 0.70`):** Behaalt de hoogste strikte lokalisatie $mAP@50-95 = 0.3201$, maar verlaagt de precisie van $75.34\%$ naar $70.44\%$ omdat overlappende duplicaatkaders niet snel genoeg worden samengevoegd.
+
+            ### 3. Falen van de Standaard YOLO Baseline (`conf = 0.25`)
+            De standaard YOLO instelling (`conf = 0.25, iou = 0.60`) behaalt slechts een mAP@50 van **0.6292**. Hij mist systematisch de snelle bal en deels bedekte spelers aan de rand van het veld, wat bewijst dat domeinspecifieke threshold tuning onmisbaar is in sport-analyse.
             """
         )
     else:

@@ -404,7 +404,7 @@ nb2_cells = [
 2. [Cruciale Examentheorie: Waarom NOOIT een ROC-Curve bij Objectdetectie?](#2-cruciale-examentheorie-waarom-nooit-een-roc-curve-bij-objectdetectie)
 3. [mAP Ontrafeld ("Mean of Averages") [EXAMEN VRAAG]](#3-map-ontrafeld-mean-of-averages-examen-vraag)
 4. [IoU (Intersection over Union) & NMS (Non-Maximum Suppression)](#4-iou-intersection-over-union--nms-non-maximum-suppression)
-5. [Systematische Benchmark van 8 IoU & NMS Configuraties](#5-systematische-benchmark-van-8-iou--nms-configuraties)
+5. [Systematische Benchmark van IoU & NMS Configuraties](#5-systematische-benchmark-van-iou--nms-configuraties)
 6. [De Winnende Configuratie & Verantwoording](#6-de-winnende-configuratie--verantwoording)
 7. [Kwalitatieve Error Analyse: Voetocclusies & Penaltystip Hallucinaties](#7-kwalitatieve-error-analyse-voetocclusies--penaltystip-hallucinaties)"""),
 
@@ -490,9 +490,9 @@ Een objectdetector genereert honderden overlappende ankerboxen rond één speler
 * Een te strikte NMS-threshold drukt de bal weg wanneer een speler er vlak naast staat."""),
 
     md_cell("""---
-## 5. Systematische Benchmark van 8 IoU & NMS Configuraties
+## 5. Systematische Benchmark van IoU & NMS Configuraties
 
-Om de optimale balans te vinden tussen precisie, recall en kleine-baldetectie, hebben we een systematisch experiment uitgevoerd met 8 verschillende parametercombinaties op de validatiedataset."""),
+Om de optimale balans te vinden tussen precisie, recall en kleine-baldetectie, hebben we een systematisch experiment uitgevoerd met 18 verschillende parametercombinaties op de validatiedataset met de RTX 4070 GPU."""),
 
     code_cell("""# Laad en Inspecteer de Benchmark Resultaten
 import pandas as pd
@@ -512,7 +512,7 @@ for p in [
 
 if csv_path and csv_path.exists():
     df_bm = pd.read_csv(csv_path)
-    print("=== IoU & NMS Benchmark Resultaten (8 Configuraties) ===")
+    print(f"=== IoU & NMS Benchmark Resultaten ({len(df_bm)} Configuraties) ===")
     display_df = df_bm.copy()
     display_df.index = range(1, len(display_df) + 1)
     print(display_df.to_string())
@@ -520,36 +520,35 @@ else:
     print(f"Benchmark CSV niet gevonden.")
 """),
 
-    code_cell("""# Vergelijkende Visualisatie van de 8 Configuraties
+    code_cell("""# Vergelijkende Visualisatie van de Benchmark Configuraties
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 if 'df_bm' in locals() and not df_bm.empty:
     plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(18, 6))
     
     # Barplot mAP@50 en mAP@50-95
     df_plot = df_bm.copy()
     df_plot['Short_Name'] = [
-        'Ultra-High Rec', 'Tight NMS', 'WINNER (0.025/0.60)', 
-        'Permissive NMS', 'Med Conf', 'Conservative', 
-        'Default (0.25/0.60)', 'High Prec'
+        f"{row['Config Name'].split('(')[0].strip()[:14]} ({row['Conf Threshold']}/{row['IoU Threshold']})"
+        for _, row in df_plot.iterrows()
     ]
     
     x = range(len(df_plot))
-    width = 0.35
+    width = 0.38
     
     axes[0].bar([i - width/2 for i in x], df_plot['mAP@50'], width=width, label='mAP@50', color='#1f77b4', alpha=0.85)
     axes[0].bar([i + width/2 for i in x], df_plot['mAP@50-95'], width=width, label='mAP@50-95', color='#ff7f0e', alpha=0.85)
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(df_plot['Short_Name'], rotation=40, ha='right', fontsize=10)
+    axes[0].set_xticklabels(df_plot['Short_Name'], rotation=45, ha='right', fontsize=8)
     axes[0].set_title('mAP@50 & mAP@50-95 Vergelijking per Configuratie', fontsize=12, fontweight='bold')
     axes[0].set_ylabel('Score')
     axes[0].legend()
     axes[0].grid(True, linestyle='--', alpha=0.6)
     
     # Highlight de winnaar
-    winner_idx = 2
+    winner_idx = df_plot['mAP@50'].idxmax()
     axes[0].get_children()[winner_idx].set_color('#00a86b')
     axes[0].get_children()[winner_idx + len(df_plot)].set_color('#2e8b57')
     
@@ -565,7 +564,7 @@ if 'df_bm' in locals() and not df_bm.empty:
     for i, row in df_plot.iterrows():
         axes[1].annotate(
             row['Short_Name'], (row['Recall (R)'] + 0.001, row['Precision (P)'] + 0.001),
-            fontsize=9, fontweight='bold' if i == winner_idx else 'normal'
+            fontsize=8, fontweight='bold' if i == winner_idx else 'normal'
         )
         
     axes[1].set_title('Precision vs. Recall Trade-Off (Grootte = mAP@50)', fontsize=12, fontweight='bold')
@@ -580,19 +579,19 @@ if 'df_bm' in locals() and not df_bm.empty:
     md_cell("""---
 ## 6. De Winnende Configuratie & Verantwoording
 
-### 🏆 De Winnaar: `Ball-Optimized (Balanced NMS)`
-* **Parameters:** `conf = 0.025`, `iou = 0.60`
+### 🏆 De Winnaar: `conf = 0.005`, `iou = 0.60`
+* **Parameters:** `conf = 0.005`, `iou = 0.60`
 * **Prestaties:**
-  * **mAP@50:** **0.7256** (Absoluut hoogste score van alle geteste configuraties)
-  * **mAP@50-95:** **0.3086** (Hoogste box-localisatie score)
-  * **Precisie (P):** **0.7382** | **Recall (R):** **0.6912** | **F1-Score:** **0.7139**
-  * **Ball mAP@50:** **0.0215**
+  * **mAP@50:** **0.7291** (Absoluut hoogste score van alle 18 geteste configuraties)
+  * **mAP@50-95:** **0.3143** (en 0.3201 bij iou=0.70)
+  * **Precisie (P):** **0.7534** | **Recall (R):** **0.6740** | **F1-Score:** **0.7115**
+  * **Ball mAP@50:** **0.0676** (+35.2% winst t.o.v. baseline)
 
 ### Vergelijking met de YOLO Standaard Baseline (`conf=0.250, iou=0.60`):
-* De standaard YOLO drempel behaalt slechts een mAP@50 van **0.6427**.
-* Onze winnende configuratie levert een spectaculaire winst op van **+8.3% mAP@50** (en +13.0% op mAP@50-95).
+* De standaard YOLO drempel behaalt slechts een mAP@50 van **0.6292**.
+* Onze winnende configuratie levert een spectaculaire winst op van **+10.0% mAP@50** (en +14.0% op mAP@50-95).
 * **Waarom?** 
-  Een drempel van $0.25$ filtert kleine, deels bedekte voetballen rigoureus weg. Door de drempel te verlagen naar $0.025$ geven we de baldetecties de kans om naar de downstream tracking-pipeline door te stromen, terwijl NMS op $0.60$ voorkomt dat spelers dubbel worden gedetecteerd."""),
+  Een drempel van $0.25$ filtert kleine, deels bedekte voetballen rigoureus weg. Door de drempel te verlagen naar $0.005$ geven we de baldetecties de kans om naar de downstream tracking-pipeline door te stromen, terwijl NMS op $0.60$ voorkomt dat spelers dubbel worden gedetecteerd."""),
 
     md_cell("""---
 ## 7. Kwalitatieve Error Analyse: Voetocclusies & Penaltystip Hallucinaties

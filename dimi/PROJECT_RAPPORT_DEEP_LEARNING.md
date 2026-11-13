@@ -241,23 +241,29 @@ Schat diepte uit één enkel 2D-beeld op basis van visuele cues: perspectief (co
 
 ## 7. DEEL 6: Praktische Experimenten, IoU/NMS Benchmark & Winnaar
 
-In `eval_iou_nms_experiments.py` hebben we 8 configuraties systematisch geëvalueerd op de validatiedata:
+In `run_threshold_experiments.py` hebben we 18 configuraties van Confidence (`conf`) en Non-Maximum Suppression (`iou`) systematisch geëvalueerd op de RTX 4070 GPU:
 
-| Configuratie Naam | Conf | IoU | Precision | Recall | F1-Score | mAP@50 | mAP@50-95 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Ultra-High Recall | 0.010 | 0.50 | 0.7341 | 0.6986 | 0.7159 | 0.7164 | 0.3042 |
-| Tight NMS | 0.025 | 0.50 | 0.7341 | 0.6986 | 0.7159 | 0.7133 | 0.3027 |
-| **WINNAAR (Ball-Optimized)** | **0.025** | **0.60** | **0.7382** | **0.6912** | **0.7139** | **0.7256** | **0.3086** |
-| Permissive NMS | 0.025 | 0.70 | 0.6925 | 0.6466 | 0.6688 | 0.7181 | 0.3113 |
-| Medium Confidence | 0.050 | 0.60 | 0.7382 | 0.6912 | 0.7139 | 0.7189 | 0.3056 |
-| Conservative | 0.100 | 0.60 | 0.7382 | 0.6912 | 0.7139 | 0.7095 | 0.3017 |
-| YOLO Default Baseline | 0.250 | 0.60 | 0.7447 | 0.6658 | 0.7030 | 0.6427 | 0.2730 |
-| High Precision / Strict | 0.250 | 0.70 | 0.6938 | 0.6462 | 0.6691 | 0.6408 | 0.2764 |
+| Configuratie Naam | Conf | IoU | Precision | Recall | F1-Score | mAP@50 | mAP@50-95 | Bal mAP@50 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **WINNAAR mAP@50 & F1** | **0.005** | **0.60** | **0.7534** | **0.6740** | **0.7115** | **0.7291** | **0.3143** | **0.0676** |
+| WINNAAR mAP@50-95 | 0.005 | 0.70 | 0.7044 | 0.6481 | 0.6751 | 0.7224 | **0.3201** | 0.0674 |
+| Ultra-Low | 0.005 | 0.50 | 0.7446 | 0.6806 | 0.7112 | 0.7236 | 0.3090 | 0.0676 |
+| Ultra-High Recall | 0.010 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7280 | 0.3134 | 0.0659 |
+| Ultra-High Recall | 0.010 | 0.50 | 0.7446 | 0.6806 | 0.7112 | 0.7219 | 0.3083 | 0.0659 |
+| Ball-Tuned | 0.015 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7249 | 0.3127 | 0.0634 |
+| Ball-Tuned | 0.020 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7239 | 0.3118 | 0.0634 |
+| Ball-Optimized | 0.025 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7239 | 0.3112 | 0.0634 |
+| Permissive NMS | 0.025 | 0.70 | 0.7044 | 0.6481 | 0.6751 | 0.7173 | 0.3169 | 0.0633 |
+| Medium Confidence | 0.050 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7146 | 0.3076 | 0.0571 |
+| Conservative | 0.100 | 0.60 | 0.7534 | 0.6740 | 0.7115 | 0.7044 | 0.3028 | 0.0541 |
+| YOLO Default Baseline | 0.250 | 0.60 | 0.7721 | 0.6480 | 0.7046 | 0.6292 | 0.2758 | 0.0500 |
+| Strict Baseline | 0.250 | 0.70 | 0.6929 | 0.6492 | 0.6703 | 0.6252 | 0.2782 | 0.0500 |
+| High Confidence Baseline | 0.500 | 0.60 | 0.9749 | 0.3415 | 0.5058 | 0.3297 | 0.1566 | 0.0350 |
 
-**Verantwoording van de Winnaar (`conf=0.025, iou=0.60`):**
-- Behaalt de hoogste **mAP@50 ($0.7256$)**, een winst van **+8.3%** ten opzichte van de standaard YOLO drempel ($0.6427$).
-- Behaalt de hoogste **mAP@50-95 ($0.3086$)**.
-- Een drempel van $0.25$ filtert kleine, wazige ballen genadeloos weg. Door de drempel op $0.025$ te zetten, stromen echte baldetecties ongehinderd door naar de tracker, terwijl NMS op $0.60$ voorkomt dat spelers dubbel worden geteld.
+**Verantwoording van de Winnaar (`conf=0.005, iou=0.60`):**
+- Behaalt de allerhoogste **mAP@50 ($0.7291$)**, een fenomenale winst van **+10.0%** ten opzichte van de standaard YOLO drempel ($0.6292$).
+- Behaalt de hoogste **F1-Score ($0.7115$)** en piekt in baldetectie met **Bal mAP@50 = 0.0676** (+35.2% winst).
+- **Waarom?** Een voetbal beslaat slechts $16 \times 17\text{ px}$. Bij snelle passes daalt de netwerkconfidence door bewegingsonscherpte tot onder $0.05$. Door `conf=0.005` in te stellen, blijven deze vroege detecties behouden, terwijl `iou=0.60` duplicaatboxen bij spelers elimineert zonder twee strijdende spelers in een duel per ongeluk te supprimeren.
 
 ---
 

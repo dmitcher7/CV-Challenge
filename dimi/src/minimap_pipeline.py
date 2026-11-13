@@ -40,7 +40,7 @@ CLASS_CONFIG = {
         "name": "Ball",
         "color_fill": (0, 0, 255),        # Altijd zuiver felrood
         "color_border": (0, 0, 255),      # Altijd zuiver felrood
-        "conf": 0.025,                    # Verhoogde recall voor bal in slotfase en bij benen
+        "conf": 0.005,                    # Geoptimaliseerde drempel (Benchmark winnaar mAP50=0.7291)
         "radius": 10
     },
     1: {
@@ -581,7 +581,7 @@ def main():
         H_t2_0 = camera_tracker.update(frame)
         Ht = H @ H_t2_0
 
-        results = model.predict(frame, imgsz=args.imgsz, conf=0.018, device=device, verbose=False)[0]
+        results = model.predict(frame, imgsz=args.imgsz, conf=0.005, iou=0.60, device=device, verbose=False)[0]
 
         raw_players = {1: [], 2: [], 3: [], 4: []}
         player_boxes = []
