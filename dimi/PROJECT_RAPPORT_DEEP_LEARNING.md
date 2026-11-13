@@ -265,6 +265,15 @@ In `run_threshold_experiments.py` hebben we 18 configuraties van Confidence (`co
 - Behaalt de hoogste **F1-Score ($0.7115$)** en piekt in baldetectie met **Bal mAP@50 = 0.0676** (+35.2% winst).
 - **Waarom?** Een voetbal beslaat slechts $16 \times 17\text{ px}$. Bij snelle passes daalt de netwerkconfidence door bewegingsonscherpte tot onder $0.05$. Door `conf=0.005` in te stellen, blijven deze vroege detecties behouden, terwijl `iou=0.60` duplicaatboxen bij spelers elimineert zonder twee strijdende spelers in een duel per ongeluk te supprimeren.
 
+### Visuele Grafieken & Officiële Curven:
+1. **Volledige 4-in-1 Drempelvergelijking:** `runs/threshold_comparison_charts.png`  
+   Toont de mAP barplot, Precision vs. Recall trade-off scatterplot, de logaritmische drempelcurve en de NMS IoU gevoeligheid.
+2. **PR-Curve (Precision-Recall / AUC-PR):** `runs/ball_yolo26_1280/BoxPR_curve.png`  
+   Conform de opdracht gebruiken we de PR-curve in plaats van een ROC-curve, omdat de achtergrondklasse ('geen bal') zwaar dominant is. De oppervlakte onder deze curve (AUC-PR) definieert de mAP@50 per klasse.
+3. **F1-Confidence Curve:** `runs/ball_yolo26_1280/BoxF1_curve.png`  
+   Visualiseert exact hoe de F1-score piekt bij lage confidence thresholds en instort bij klassieke hoge drempels ($>0.30$).
+4. **Genormaliseerde Verwarringsmatrix:** `runs/ball_yolo26_1280/confusion_matrix_normalized.png`
+
 ---
 
 ## 8. DEEL 7: Sports Vision Pipeline, Invariant Tracking & Telemetrie

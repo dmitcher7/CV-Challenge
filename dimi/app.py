@@ -139,6 +139,33 @@ with tab3:
 
         st.dataframe(df_bench, use_container_width=True)
 
+        st.subheader("Visuele Drempelwaarde Vergelijkingen")
+        chart_img = RUNS_DIR / "threshold_comparison_charts.png"
+        if chart_img.exists():
+            st.image(str(chart_img), caption="Systematische Vergelijking van 18 Threshold Configuraties (mAP, PR Trade-Off, Bal Gevoeligheid & IoU NMS)", use_container_width=True)
+
+        st.subheader("Officiële Validatiecurven: PR-Curve, F1-Curve & Verwarringsmatrix")
+        st.write(
+            "Bij objectdetectie gebruiken we conform de opdracht uitsluitend de **Precision-Recall Curve (PR-Curve)** "
+            "in plaats van een ROC-curve, omdat de achtergrondklasse ('geen bal/speler') zwaar oververtegenwoordigd is (extreme class imbalance)."
+        )
+
+        col_pr, col_f1 = st.columns(2)
+        pr_path = RUNS_DIR / RUN_NAME / "BoxPR_curve.png"
+        f1_path = RUNS_DIR / RUN_NAME / "BoxF1_curve.png"
+        if pr_path.exists():
+            col_pr.image(str(pr_path), caption="Precision-Recall Curve (Area Under Curve = mAP@50 per klasse)", use_container_width=True)
+        if f1_path.exists():
+            col_f1.image(str(f1_path), caption="F1-Confidence Curve (Piek F1 rond lage confidence thresholds)", use_container_width=True)
+
+        col_p, col_cm = st.columns(2)
+        p_path = RUNS_DIR / RUN_NAME / "BoxP_curve.png"
+        cm_path = RUNS_DIR / RUN_NAME / "confusion_matrix_normalized.png"
+        if p_path.exists():
+            col_p.image(str(p_path), caption="Precision-Confidence Curve (Stabiele precisie bij toenemende drempel)", use_container_width=True)
+        if cm_path.exists():
+            col_cm.image(str(cm_path), caption="Genormaliseerde Verwarringsmatrix (YOLO26s op test/val)", use_container_width=True)
+
         st.subheader("Verantwoording & Analyse van de Drempelwaarden")
         st.markdown(
             r"""
