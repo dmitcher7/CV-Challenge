@@ -1,0 +1,2 @@
+date,run,model,imgsz,epochs,best_epoch,patience,batch,val_mAP50,test_mAP50,val_mAP50-95,test_mAP50-95
+2026-10-31,yolo26l_1920,yolo26l.pt,1920,45,30,15,2,0.672,0.7601,0.2776,0.4729

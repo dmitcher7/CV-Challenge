@@ -1,0 +1,10 @@
+# GPU-job van match_analyse. Installeer EERST torch met CUDA (zie gpu/README.md), daarna dit bestand.
+# ultralytics staat vast op de versie waarmee best.pt gemaakt en alles getest is.
+ultralytics==8.4.182
+opencv-python>=4.9.0.80
+numpy>=1.24.0
+scipy>=1.11.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+pyyaml>=6.0
+pytest>=8.0.0
