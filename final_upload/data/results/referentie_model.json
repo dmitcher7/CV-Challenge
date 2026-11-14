@@ -1,0 +1,6 @@
+{
+  "bestand": "psg_vs_inter_CV.pt",
+  "bytes": 53008741,
+  "md5": "1815ecba306d7c1039348b0c38b13efd",
+  "beschrijving": "Het meegeleverde finale model (YOLO26l, imgsz 960, 100 epochs, 136 beelden). De tekst en de cijfers in de notebooks beschrijven dit model."
+}

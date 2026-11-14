@@ -11,7 +11,8 @@ tracking, homografie naar meters, balbezit en wedstrijdanalyses, met een Streaml
 | Map | Wat |
 |---|---|
 | `notebooks/` | Zes uitgevoerde notebooks met uitleg, grafieken en vergelijkingen (zie hieronder) |
-| `uitleg/` | Negen uitleg-bestanden per onderwerp (theorie + hoe wij het toepasten) |
+| `uitleg/` | Een overzicht van alles wat gebruikt is (`00_...`) en negen uitleg-bestanden per onderwerp, met illustraties |
+| `powerpoint/` | De presentatie (9 dia's, met sprekersnotities) |
 | `models/psg_vs_inter_CV.pt` | Het finale detectiemodel (YOLO26l, imgsz 960, 100 epochs, 5 klassen) |
 | `models/experimenten/` | De mislukte bal-fine-tune, alleen ter vergelijking |
 | `models/basis/yolo26l.pt` | Het COCO-basismodel waarvan de training vertrekt |
@@ -29,19 +30,30 @@ tracking, homografie naar meters, balbezit en wedstrijdanalyses, met een Streaml
 | `04_tracking_en_balbezit.ipynb` | ByteTrack, teams, de bal (Kalman, interpolatie, experimenten), balbezit |
 | `05_match_analyse.ipynb` | Afstand, snelheid, zones, heatmaps, aanvalsrichting |
 | `06_systeemevaluatie.ipynb` | Het hele systeem gemeten tegen handgelabelde ground truth, met foutenanalyse |
+| `07_eindresultaat_video.ipynb` | Draait de hele pijplijn en schrijft de minimapvideo, de csv's en het rapport weg |
 
-De notebooks zijn uitgevoerd opgeslagen: alle uitvoer en figuren staan erin. Ze draaien opnieuw zonder GPU,
-omdat de YOLO-detecties van de clip in `streamlit/cache/` staan.
+De notebooks zijn uitgevoerd opgeslagen: alle uitvoer en figuren staan erin.
 
-## Het model opnieuw trainen
+## De notebooks als keten
 
-De trainingsdata (`data/datasets/final_train_v4/`, de 136 gelabelde beelden van het finale model), het basismodel en
-de trainingscode (in notebook 01) zitten in deze map.
+Voer de notebooks in volgorde uit, van 01 tot 07. Ze werken alle op één bestand, het **actieve model**
+`models/psg_vs_inter_CV.pt`:
 
-Notebook 01, sectie 6, bevat de volledige trainingscode: met een GPU draait de volledige training, zonder GPU de
-demonstratierun. De opgeslagen uitvoer in het notebook komt van een demonstratierun; de volledige training vanuit
-deze map is niet uitgevoerd omdat er geen GPU beschikbaar was. Het resultaat komt in `models/runs/`;
-`models/psg_vs_inter_CV.pt` wordt niet overschreven.
+- **Notebook 01** traint het model vanaf de COCO-gewichten, met de trainingsdata (`data/datasets/final_train_v4/`, de
+  136 gelabelde beelden) en het basismodel uit deze map. Met een NVIDIA-GPU is dat de volledige training (100 epochs,
+  ongeveer een uur); het nieuwe model wordt daarna het actieve model en het meegeleverde model wordt bewaard in
+  `models/referentie/`. Zonder GPU draait een demonstratierun van 1 epoch die niets vervangt.
+- **Notebook 02 tot 06** rekenen met het actieve model en melden bovenaan welk model dat is. Voor een nieuw model
+  berekenen ze de YOLO-detecties zelf opnieuw (seconden per instelling op een GPU, minuten op een CPU); voor het
+  meegeleverde model komen de detecties uit `streamlit/cache/`, zodat alles ook zonder GPU draait.
+- **Notebook 07** schrijft het eindresultaat weg in `streamlit/output/`: de minimapvideo, de csv's en het rapport.
+
+De begeleidende tekst in de notebooks beschrijft het meegeleverde model. Met een hertraind model wijken de cijfers
+in de uitvoer daar licht van af. De opgeslagen uitvoer komt van een run op een laptop zonder GPU, dus met het
+meegeleverde model; een volledige hertraining vanuit deze map is daar niet uitgevoerd.
+
+Notebook 02 toont daarnaast de opgeslagen resultaten van de GPU-run (`data/results/gpu_run/`: de PR-curves, de
+NMS-sweep en de bal-fine-tune). Die horen bij het meegeleverde model en worden niet opnieuw berekend.
 
 ## Gebruik
 
