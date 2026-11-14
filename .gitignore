@@ -14,7 +14,6 @@ ENV/
 # YOLO & Machine Learning outputs
 runs/
 *.pt
-!final_upload/models/*.pt
 *.onnx
 *.engine
 *.cache
@@ -36,3 +35,19 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# ---------------------------------------------------------------------------
+# final_upload: the delivery folder must be complete. The rules above stay valid
+# for the rest of the repo; the exceptions below only apply inside final_upload/.
+# ---------------------------------------------------------------------------
+# models (final model, COCO base weights, the ball fine-tune experiment)
+!final_upload/**/*.pt
+# the clip and the rendered minimap video
+!final_upload/**/*.mp4
+# saved results of the training runs (hidden by the general rule "runs/")
+!final_upload/data/results/training/runs/
+!final_upload/data/results/training/runs/**
+# ... but not what the notebooks and the app generate while running
+final_upload/models/runs/
+final_upload/models/referentie/
+final_upload/streamlit/cache/uploads/

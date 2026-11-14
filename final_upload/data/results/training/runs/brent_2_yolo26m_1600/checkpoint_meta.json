@@ -1,0 +1,21 @@
+{
+ "date": "2026-11-09T14:57:56.828734+01:00",
+ "ultralytics": "8.4.193",
+ "git": {
+  "root": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-Challenge",
+  "branch": "bvg-correctie-frames",
+  "commit": "dac09c1e60ca35873b1a78801fb79cf28f889f76",
+  "message": "Toevoegen spelers aan ball frames, + toevoegen meerdere frames in later stadium van match",
+  "origin": "https://github.com/dmitcher7/CV-Challenge.git"
+ },
+ "train_metrics": {
+  "metrics/precision(B)": 0.75655,
+  "metrics/recall(B)": 0.74255,
+  "metrics/mAP50(B)": 0.78386,
+  "metrics/mAP50-95(B)": 0.35069,
+  "val/box_loss": 1.59979,
+  "val/cls_loss": 0.8915,
+  "val/l1_loss": 0.00242,
+  "fitness": 0.35069
+ }
+}

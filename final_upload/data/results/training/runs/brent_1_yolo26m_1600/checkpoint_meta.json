@@ -1,0 +1,21 @@
+{
+ "date": "2026-10-30T12:24:46.723712+01:00",
+ "ultralytics": "8.4.193",
+ "git": {
+  "root": "C:\\Users\\brent\\3ACS01\\Deep Learning\\CV-Challenge",
+  "branch": "main",
+  "commit": "8a8c78d41b2693d181bf89777d58bb573268f7f0",
+  "message": null,
+  "origin": "https://github.com/dmitcher7/CV-Challenge.git"
+ },
+ "train_metrics": {
+  "metrics/precision(B)": 0.66051,
+  "metrics/recall(B)": 0.6738,
+  "metrics/mAP50(B)": 0.7122,
+  "metrics/mAP50-95(B)": 0.32948,
+  "val/box_loss": 1.53566,
+  "val/cls_loss": 1.18617,
+  "val/l1_loss": 0.00236,
+  "fitness": 0.32948
+ }
+}

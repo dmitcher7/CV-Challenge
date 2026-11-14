@@ -4,8 +4,8 @@ import subprocess
 from pathlib import Path
 
 # Paths
-REPO_ROOT = Path(r"c:\Users\dimit\Documents\01 - Thomas More\Thomas More Jaar 3\01 - Semester 1\Deep Learning\Project 2 - CV\CV-Challenge")
-USER_IMG_PATH = Path(r"C:\Users\dimit\.gemini\antigravity\brain\27447295-8834-4623-a1e2-436d23b49c80\.user_uploaded\media_1794673222159_5f345b91.jpg")
+REPO_ROOT = Path(__file__).resolve().parent.parent      # the repository root (this file is in scripts/)
+USER_IMG_PATH = REPO_ROOT / "final_upload" / "pdf" / "voorblad_frame_en_minimap.jpg"   # frame 226, final model
 IMG_BEELDGROOTTE_PATH = REPO_ROOT / "final_upload" / "uitleg" / "img" / "04_effect_beeldgrootte.png"
 IMG_HEATMAP_PATH = REPO_ROOT / "final_upload" / "uitleg" / "img" / "07_heatmaps.png"
 IMG_SMOOTH_PATH = REPO_ROOT / "final_upload" / "uitleg" / "img" / "07_ruw_vs_afgevlakt.png"
@@ -392,17 +392,17 @@ html_template = """<!DOCTYPE html>
     <div class="kpi-card teal">
       <div class="kpi-label">Rolaccuraatheid</div>
       <div class="kpi-value">99.2%</div>
-      <div class="kpi-note">321 van 324 rollen correct</div>
+      <div class="kpi-note">Juiste rol, 22 GT-frames</div>
     </div>
     <div class="kpi-card amber">
       <div class="kpi-label">Homografiefout</div>
       <div class="kpi-value">0.16 m</div>
-      <div class="kpi-note">Mediane fout via RANSAC</div>
+      <div class="kpi-note">Mediane herprojectiefout</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Bal Terugvinding</div>
       <div class="kpi-value">19 / 21</div>
-      <div class="kpi-note">Op 1280px testresolutie</div>
+      <div class="kpi-note">Gelabelde ballen, op 1280 px</div>
     </div>
   </div>
 
@@ -414,7 +414,7 @@ html_template = """<!DOCTYPE html>
     Het model herkent automatisch alle belangrijke objecten op het veld: de spelers van beide teams, de doelman, de scheidsrechters en de voetbal. De gedetecteerde objecten worden rechtstreeks op de oorspronkelijke videobeelden aangeduid met behulp van bounding boxes en bijhorende labels. Naast de geannoteerde videobeelden voorzien we een tweede weergave in de vorm van een 2D-bovenaanzicht van het veld waarop de posities synchroon worden geprojecteerd.
   </p>
   <p>
-    Het hoofddoel van dit project is om aan te tonen hoe computer vision ruwe uitzendbeelden kan transformeren naar bruikbare ruimtelijke informatie. Hierdoor krijgen trainers en analisten direct inzicht in formaties, onderlinge afstanden, dekkingsgraden en balbezit.
+    Het hoofddoel van dit project is om aan te tonen hoe computer vision ruwe uitzendbeelden kan transformeren naar bruikbare ruimtelijke informatie. Hierdoor krijgen trainers en analisten inzicht in posities, onderlinge afstanden, veldbezetting en balbezit.
   </p>
 
   <div class="page-break"></div>
@@ -431,22 +431,22 @@ html_template = """<!DOCTYPE html>
   </p>
   <ul>
     <li><strong>Geen grondschaduw:</strong> De bounding box sluit strak aan op het lichaam en de bal, zonder schaduwen mee te nemen.</li>
-    <li><strong>Motion blur meenemen:</strong> Bij snelle acties werd de volledige bewegingsveeg van de bal in de box opgenomen om het netwerk te leren dat een onscherpe veeg ook de bal representeert.</li>
+    <li><strong>Motion blur meenemen:</strong> Bij snelle acties werd de volledige bewegingsveeg van de bal in de box opgenomen.</li>
     <li><strong>Occlusie en beeldrand:</strong> Een bal werd enkel gelabeld als minstens 30% zichtbaar was; aan de rand van het beeld moest meer dan de helft zichtbaar zijn.</li>
     <li><strong>Peer review:</strong> Elk teamlid controleerde het labelwerk van een ander teamlid om inconsistenties meteen te corrigeren.</li>
   </ul>
 
-  <h2>Datasetvoorbereiding en Preventie van Data Leakage</h2>
+  <h2>Datasetsplitsing en Data Leakage</h2>
   <p>
-    Omdat opeenvolgende videoframes sterk op elkaar lijken, zou een willekeurige splitsing leiden tot <strong>data leakage</strong>: het netwerk herkent dan naburige beelden uit het geheugen in plaats van generaliseerbare patronen te leren. We hebben daarom gekozen voor een <strong>temporele opsplitsing in blokken</strong> met bufferzones tussen train, validatie en test. Daarnaast werden statische duplicaatframes (veroorzaakt door de conversie van 25 naar 30 FPS) verwijderd.
+    Omdat opeenvolgende videoframes sterk op elkaar lijken, leidt een willekeurige splitsing tot <strong>data leakage</strong>: het netwerk herkent dan naburige beelden uit het geheugen in plaats van generaliseerbare patronen te leren. In de eerste trainingsruns splitsten we daarom <strong>per tijdsblok</strong>, met een buffer tussen train en validatie; die runs haalden een mAP50 van 0,67 tot 0,78. Het finale model trainde op alle 136 frames en valideerde op diezelfde beelden. Zijn cijfers (<strong>mAP50 0,895, mAP50-95 0,546</strong>) zijn daardoor trainingscijfers en te optimistisch. De eerlijkste meting van het geheel is de systeemevaluatie tegen eigen ground truth (pagina 1).
   </p>
 
   <h2>Model Fine-Tuning &amp; GPU-Acceleratie</h2>
   <p>
-    Tijdens de eerste trainingen duurde het proces op de CPU te lang. We hebben PyTorch geconfigureerd met <strong>CUDA op dedicated NVIDIA GeForce RTX GPU's</strong>, waardoor de training automatisch versnelde en een volledige run van 100 epochs binnen circa 25 minuten afgerond was. Hierdoor konden we negen trainingsruns vergelijken.
+    Tijdens de eerste trainingen duurde het proces op de CPU te lang. We hebben PyTorch geconfigureerd met <strong>CUDA op dedicated NVIDIA GeForce RTX GPU's</strong>, waardoor een volledige run van 100 epochs in ongeveer een uur afgerond was (55 minuten voor het finale model). Hierdoor konden we negen trainingsruns vergelijken, van YOLO26n tot YOLO26l en van 640 tot 1920 pixels.
   </p>
   <p>
-    Het finale model is <strong>YOLO26l</strong> (26,2 miljoen parameters), getraind vanaf COCO-basisgewichten over 100 epochs (batch size 2, gradient accumulation tot 64, AdamW met cosinus learning rate decay en early stopping na 25 epochs). Belangrijke keuzes bij de data-augmentatie: <strong>Mosaic uitgeschakeld</strong> (zodat de kleine bal niet kromp tot minder dan 8 pixels), lichte Mixup (0.15) en scaling voor robuustheid tegen overlappende spelers, en beperkte HSV-kleuraugmentatie (tintvariatie slechts 0.015) om de shirtkleuren betrouwbaar te houden.
+    Het finale model is <strong>YOLO26l</strong> (26,2 miljoen parameters), getraind vanaf COCO-basisgewichten over 100 epochs (batch size 2, gradient accumulation tot 64, AdamW met cosinus learning rate decay en early stopping na 25 epochs). Belangrijke keuzes bij de data-augmentatie: <strong>Mosaic uitgeschakeld</strong> (mosaic verkleint objecten, en de bal is op 960 pixels al maar 7 pixels groot), lichte Mixup (0.15), beperkte scaling (0.2) en beperkte HSV-kleuraugmentatie (tintvariatie slechts 0.015) om de shirtkleuren betrouwbaar te houden. Tegenover het COCO-basismodel is de winst duidelijk: COCO vindt op onze testbeelden geen enkele bal (AP50 0,000 tegenover 0,195), omkadert personen minder nauwkeurig (mAP50-95 0,669 tegenover 0,815) en kent geen teams.
   </p>
 
   <div class="figure-card">
@@ -456,32 +456,33 @@ html_template = """<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="page-break"></div>
+
+  <!-- ==================== PAGE 3 ==================== -->
   <h2>Vastgestelde Foutanalyse &amp; Gerichte Oplossingen</h2>
   <div class="info-callout">
     <div class="info-callout-title">Belangrijkste Foutbronnen en Oplossingen</div>
     <ul>
-      <li><strong>Spelersoverlappingen:</strong> Bij drukte rond de middellijn en het doelgebied zag het model soms één gecombineerde bounding box. Dit losten we op door Non-Maximum Suppression (NMS) strak af te stellen en een dubbelenfilter (IoU &gt; 0.6) toe te passen.</li>
-      <li><strong>Baldetectie &amp; Valse Positieven:</strong> De bal is klein (ongeveer 16 pixels) en werd soms verward met witte schoenen of de penaltystip. We hebben dit opgelost door de inferentie uit te voeren op <strong>1280 pixels</strong> in plaats van 960 (waardoor 19 van de 21 ballen werden gevonden, zie Figuur 2), de confidence-drempel voor de bal op 0.20 te zetten en een ruimtelijke uitsluiting toe te passen rond de penaltystippen.</li>
+      <li><strong>Spelersoverlappingen:</strong> Bij drukte rond het doelgebied geeft het model soms dubbele boxen op één speler. Een sweep van de NMS-drempel (IoU 0.3 tot 0.8) gaf geen verschil, dus die bleef op 0.7; een eigen dubbelenfilter (IoU &gt; 0.6) haalt de dubbele boxen weg. Bij één overlap sprong de track van de scheidsrechter over op een PSG-speler (ID-wissel).</li>
+      <li><strong>Baldetectie &amp; Valse Positieven:</strong> De bal is klein (ongeveer 14 pixels) en wordt soms verward met witte schoenen of de penaltystip. We verbeterden dit door de inferentie uit te voeren op <strong>1280 pixels</strong> in plaats van 960 (19 in plaats van 16 van de 21 gelabelde ballen gevonden, zie Figuur 2), de confidence-drempel voor de bal op 0.20 te zetten en detecties rond de penaltystippen en de middenstip uit te sluiten. Wat overblijft: 2 ballen die YOLO helemaal niet ziet en één valse detectie op 5,9 meter van de echte bal.</li>
     </ul>
   </div>
 
-  <div class="page-break"></div>
 
-  <!-- ==================== PAGE 3 ==================== -->
   <h1>Homography &amp; 2D Minimap Projection</h1>
   <p>
     Om de spelers en de bal vanuit het schuine perspectief van de tv-camera nauwkeurig om te rekenen naar een tweedimensionaal bovenaanzicht van 105 &times; 68 meter, maken we gebruik van een <strong>homografietransformatie</strong> via OpenCV (<code>cv2.findHomography</code>). Hierbij geldt de <strong>planar assumption</strong>: we beschouwen het speelveld als een plat tweedimensionaal vlak (Z = 0).
   </p>
   <p>
-    Een veelvoorkomend probleem bij homografie is perspectivische parallaxfout: wanneer het middelpunt van een spelerbox wordt getransformeerd, belandt de positie door de hoogte van het lichaam meters te ver naar achteren (een spelerhoofd belandt gemiddeld 6,8 meter te ver). We lossen dit structureel op door niet het boxmidden te projecteren, maar het exacte contactpunt met het gras bij de <strong>voeten van de speler</strong> (<code>x_center, y_bottom</code>).
+    Een veelvoorkomend probleem bij homografie is perspectivische parallaxfout: wanneer het middelpunt van een spelerbox wordt getransformeerd, belandt de positie door de hoogte van het lichaam meters te ver naar achteren (een spelerhoofd belandt mediaan 6,8 meter te ver). We lossen dit structureel op door niet het boxmidden te projecteren, maar het exacte contactpunt met het gras bij de <strong>voeten van de speler</strong> (<code>x_center, y_bottom</code>).
   </p>
   <p>
-    Voor de continu meebewegende en zoomende uitzendcamera hebben we <strong>305 veldpunten gelabeld over 39 keyframes</strong> (hoeken van het strafschopgebied, doelgebied, doellijn, penaltystippen en middellijn). Tussenliggende frames worden temporeel geïnterpoleerd. Door uitschieters en foute kliks automatisch weg te filteren via het <strong>RANSAC-algoritme</strong>, behalen we een mediane herprojectiefout van slechts <strong>0,16 meter</strong> op de geteste veldpunten.
+    Voor de continu meebewegende en zoomende uitzendcamera hebben we <strong>305 veldpunten gelabeld over 39 keyframes</strong> (hoeken van het strafschopgebied, doelgebied, doellijn, penaltystippen en middellijn). Tussenliggende frames worden temporeel geïnterpoleerd. De matrix wordt geschat met het <strong>RANSAC-algoritme</strong>, dat een eventuele misklik negeert; in onze klikken hoefde het geen enkel punt te verwerpen. De mediane herprojectiefout is <strong>0,16 meter</strong> per keyframe. Tegen handmatig geklikte voetposities staan spelers gemiddeld 1,09 meter van hun plaats.
   </p>
 
   <h1 class="section-extra-spacious">2. Lokale Interface &amp; Deployment (Streamlit Dashboard)</h1>
   <p>
-    Voor de eindgebruiker bouwden we een performante, interactieve webapplicatie met behulp van <strong>Streamlit</strong> (op te starten via <code>streamlit run app/app.py</code>). De interface biedt een intuïtief dashboard waarin de gebruiker de videoclip kan laden, drempelwaarden kan aanpassen en de analyse realtime kan volgen.
+    Voor de eindgebruiker bouwden we een performante, interactieve webapplicatie met behulp van <strong>Streamlit</strong> (op te starten via <code>streamlit run app/app.py</code>). De interface biedt een intuïtief dashboard waarin de gebruiker de videoclip kan laden, drempelwaarden kan aanpassen en het effect meteen ziet.
   </p>
   <p>
     De interface bestaat uit twee gesynchroniseerde panelen: enerzijds de originele videoweergave met bounding boxes, teamidentificatie, scheidsrechters en de bal, en anderzijds een meelopende 2D-tactische minimap waarop alle spelersposities en camerabegrenzingen (Field of View) synchroon worden geprojecteerd.
@@ -502,38 +503,38 @@ html_template = """<!DOCTYPE html>
   <!-- ==================== PAGE 4: THE EXTRA MILE ONLY ==================== -->
   <h1 class="section-spacious">3. The Extra Mile: Technische Uitbreidingen (Extra Credits)</h1>
   <p>
-    Bovenop de basisvereisten van de challenge heeft ons team vier geavanceerde technische extensies geïmplementeerd om de robuustheid, consistentie en analytische waarde van het platform naar een professioneel niveau te tillen:
+    Bovenop de basisvereisten van de challenge heeft ons team drie technische uitbreidingen geïmplementeerd om de robuustheid, consistentie en analytische waarde van het platform naar een professioneel niveau te tillen:
   </p>
 
   <h2>Tracking en Trajectorie van de Bal (ByteTrack &amp; Kalman-filter)</h2>
   <p>
-    Spelers worden over opeenvolgende frames stabiel gevolgd met <strong>ByteTrack</strong> via het Hongaarse algoritme op basis van bounding box overlapping en bewegingsvoorspelling. Elke speler behoudt hierdoor een uniek ID doorheen de clip. De uiteindelijke teamtoewijzing wordt bepaald door een confidence-gewogen meerderheidsstemming over alle gedetecteerde frames van dat track-ID, wat resulteert in een <strong>rolconsistentie van 99.04%</strong> (geen flikkerende teamkleuren).
+    Spelers worden over opeenvolgende frames stabiel gevolgd met <strong>ByteTrack</strong> via het Hongaarse algoritme op basis van bounding box overlapping en bewegingsvoorspelling. Dat geeft 41 track-ID's voor 22 spelers en de scheidsrechters: negentien tracks lopen vrijwel de hele clip door, bij overlap of kort verlies krijgt een speler soms een nieuw ID. De teamtoewijzing wordt bepaald door een confidence-gewogen meerderheidsstemming over alle frames van een track-ID; in <strong>99.04%</strong> van de detecties komt de klasse per frame overeen met de groep van de track (geen flikkerende teamkleuren).
   </p>
   <p>
-    Voor de bal ontwikkelden we een op maat gemaakt <strong>Kalman-filter in veldmeters</strong> (toestand vector: x, y, vx, vy) met een dynamische zoekpoort (2 m basispoort + 1.5 m per frame zonder meting). Dit filter overbrugt occlusies en gemiste detecties tot 15 frames (0.5 s) via lineaire toestandsextrapolatie en negeert statische reflecties zoals de penaltystip.
+    Voor de bal ontwikkelden we een op maat gemaakt <strong>Kalman-filter in veldmeters</strong> (toestand vector: x, y, vx, vy) met een dynamische zoekpoort (2 m basispoort + 1.5 m per frame zonder meting). Gaten tot 15 frames (0.5 s) tussen twee metingen worden lineair geïnterpoleerd; langere gaten blijven leeg, zodat er geen ballen verzonnen worden. Met de standaardinstellingen is de bal in 308 frames gedetecteerd, in 191 geïnterpoleerd en in 161 afwezig.
   </p>
 
   <h2>Ruimtelijke Veldbezetting en Warmtekaarten (KDE)</h2>
   <p>
-    We genereren tactische bezettingskaarten met behulp van <strong>tweedimensionale Gaussiaanse Kernel Density Estimation (KDE)</strong> op de getransformeerde veldposities. Hiermee worden de ruimtelijke dominantiezones en de formaties van PSG en Inter direct zichtbaar gemaakt voor tactische coaches (zie Figuur 3).
+    We genereren bezettingskaarten met een <strong>tweedimensionale Gaussiaanse dichtheidsschatting (KDE)</strong> op de getransformeerde veldposities: posities worden geteld in vakken van 1 meter en vloeiend gemaakt met een Gaussiaans filter. Zo wordt zichtbaar waar PSG, Inter en de bal zich in de clip bevonden (zie Figuur 3). Met 22 seconden is dat een momentopname, geen formatie.
   </p>
 
   <h2>Geautomatiseerde Wedstrijdstatistieken &amp; Trajectorie-afvlakking</h2>
   <p>
-    Het platform berekent continu de afgelegde afstanden, snelheden en balbezit. Omdat lichte trillingen van de tv-camera leidden tot een overschatting van de loopafstanden (zonder correctie bedroeg de cumulatieve meetafwijking +59%), passen we een <strong>afvlakking toe via een voortschrijdend gemiddelde over 0,5 seconden</strong> (zie Figuur 4). Daarnaast analyseert het systeem continu het balbezit met hysterese (PSG 42.3%, Inter 27.1%, Betwist 30.7%) en herkent het schoten op doel.
+    Het platform berekent continu de afgelegde afstanden, snelheden en balbezit. Omdat kleine sprongen van de boxen en de homografie van frame tot frame als beweging meetellen, worden de loopafstanden overschat (zonder correctie +59%). Daarom passen we een <strong>afvlakking toe via een voortschrijdend gemiddelde over 0,5 seconden</strong> (zie Figuur 4). Daarnaast bepaalt het systeem het balbezit met hysterese: PSG heeft de bal in 92% en Inter in 8% van de frames met balbezit; in 27% van alle frames heeft niemand de bal. Het telt ook aanvallen (PSG komt 5 keer in het laatste derde). Schoten worden niet geteld: die zijn in deze data niet betrouwbaar van een pass te onderscheiden.
   </p>
 
   <div class="grid-two-col">
     <div class="figure-card" style="margin: 0;">
       <img src="data:image/png;base64,__IMG_HEATMAP_B64__" style="max-height: 105px; object-fit: contain;" alt="Heatmaps">
       <div class="figure-caption">
-        <span><strong>Figuur 3:</strong> Territoriale bezettingsheatmaps (PSG links, Inter rechts) via 2D Gaussiaanse KDE.</span>
+        <span><strong>Figuur 3:</strong> Bezettingsheatmaps van PSG (links), Inter (midden) en de bal (rechts).</span>
       </div>
     </div>
     <div class="figure-card" style="margin: 0;">
       <img src="data:image/png;base64,__IMG_SMOOTH_B64__" style="max-height: 105px; object-fit: contain;" alt="Trajectorie-afvlakking">
       <div class="figure-caption">
-        <span><strong>Figuur 4:</strong> Ruwe vs. afgevlakte trajectorie (elimineert 59% meetruis door cameratrilling).</span>
+        <span><strong>Figuur 4:</strong> Ruwe vs. afgevlakte trajectorie: ruwe posities overschatten de afstand met 59%.</span>
       </div>
     </div>
   </div>
@@ -554,7 +555,7 @@ html_template = """<!DOCTYPE html>
 
   <h1 class="section-extra-spacious">5. Conclusie &amp; Final Remarks</h1>
   <p>
-    Met dit project tonen we aan dat een zorgvuldig geannoteerde dataset van 136 beelden en een goed doordachte computer vision-pijplijn volstaan om professionele wedstrijdanalyses uit te voeren. De combinatie van YOLO26l, ByteTrack, homografische veldprojectie en Kalman-filtering levert een betrouwbaar en reproduceerbaar eindresultaat:
+    Met dit project tonen we aan dat een zorgvuldig geannoteerde dataset van 136 beelden en een goed doordachte computer vision-pijplijn volstaan om een korte clip om te zetten naar een bruikbare tactische weergave. De combinatie van YOLO26l, ByteTrack, homografische veldprojectie en Kalman-filtering levert een reproduceerbaar eindresultaat, dat we ook gemeten hebben:
   </p>
 
   <table>
@@ -574,12 +575,12 @@ html_template = """<!DOCTYPE html>
       <tr>
         <td><strong>Spelerstracking</strong></td>
         <td>ByteTrack + Majority Voting</td>
-        <td>41 unieke tracks, 99.04% rol- en teamconsistentie</td>
+        <td>41 track-ID's, 99.04% consistente teamtoewijzing per track</td>
       </tr>
       <tr>
         <td><strong>Bal State Estimation</strong></td>
         <td>Kalman Filter in meters + Gating</td>
-        <td>Occlusie-overbrugging tot 15 frames, stabiel traject</td>
+        <td>Interpolatie van gaten tot 15 frames; bal bekend in 499 van 660 frames</td>
       </tr>
       <tr>
         <td><strong>Veldhomografie</strong></td>
@@ -589,7 +590,7 @@ html_template = """<!DOCTYPE html>
       <tr>
         <td><strong>Tactische Analytics</strong></td>
         <td>2D Gaussiaanse KDE + 0.5s filter</td>
-        <td>Afstandsafwijking -59% gecorrigeerd, live balbezitanalyse</td>
+        <td>Afstandsoverschatting van 59% gecorrigeerd, balbezit per frame</td>
       </tr>
       <tr>
         <td><strong>Stabiliteit &amp; CI</strong></td>
@@ -600,7 +601,7 @@ html_template = """<!DOCTYPE html>
   </table>
 
   <p>
-    De belangrijkste lessen uit dit project zijn de noodzaak van een temporele split ter voorkoming van data leakage, het uitschakelen van mosaic-augmentatie bij zeer kleine objecten, en de grote winst van inferentie op 1280px voor baldetectie. Als mogelijke vervolgstap kan geautomatiseerde keypointdetectie (bijvoorbeeld via YOLO Pose) worden onderzocht om manuele keyframe-selectie volledig te automatiseren.
+    De belangrijkste lessen uit dit project: houd vanaf het begin een vaste testset per tijdsblok apart (ons finale model valideerde op zijn eigen trainingsbeelden, waardoor de mAP te optimistisch is), schakel mosaic-augmentatie uit bij zeer kleine objecten, en inferentie op 1280px levert veel op voor de baldetectie. De resultaten gelden voor één clip van 22 seconden met handmatig geklikte veldpunten. Als mogelijke vervolgstap kan geautomatiseerde keypointdetectie (bijvoorbeeld via YOLO Pose) worden onderzocht om manuele keyframe-selectie volledig te automatiseren.
   </p>
 
 </body>
