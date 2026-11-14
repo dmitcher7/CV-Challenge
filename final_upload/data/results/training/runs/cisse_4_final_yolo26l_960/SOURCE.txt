@@ -1,0 +1,1 @@
+cisse/model/player_training/ (commit ec70a4b 'momenteel beste model'); matches train_results inside final_upload/models/psg_vs_inter_CV.pt

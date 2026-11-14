@@ -1,0 +1,1 @@
+git show 6172c92:cisse/model/player_training/(results.csv|args.yaml)

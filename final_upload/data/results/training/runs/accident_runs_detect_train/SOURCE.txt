@@ -1,0 +1,1 @@
+runs/detect/train/ in the repo root (not a real project run, see notebook)

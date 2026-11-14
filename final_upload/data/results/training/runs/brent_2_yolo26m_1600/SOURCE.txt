@@ -1,0 +1,1 @@
+extracted from checkpoint kobe/homography/pretrained/brent_v2/best.pt (Brent's 'best 1.pt')
