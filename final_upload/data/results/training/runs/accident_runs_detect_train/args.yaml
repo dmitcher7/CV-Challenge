@@ -1,0 +1,5 @@
+data: coco8.yaml
+device: cpu
+epochs: 100
+imgsz: 320
+model: runs/detect/train_320_b2/weights/last.pt

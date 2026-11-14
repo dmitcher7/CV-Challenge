@@ -5,6 +5,8 @@ echo ========================================================
 cd /d "%~dp0streamlit"
 if exist "%~dp0..\venv\Scripts\python.exe" (
     "%~dp0..\venv\Scripts\python.exe" -m streamlit run app/app.py
+) else if exist "%~dp0venv\Scripts\python.exe" (
+    "%~dp0venv\Scripts\python.exe" -m streamlit run app/app.py
 ) else (
     python -m streamlit run app/app.py
 )
