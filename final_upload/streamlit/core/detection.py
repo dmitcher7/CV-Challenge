@@ -75,6 +75,9 @@ def cache_path(video, weights, imgsz, iou, start, end, stride, nms=None, portabl
         legacy = CACHE_DIR / f"{stem}_{_digest({**legacy_cache_key(video, weights), **params})}.json"
         if legacy.exists():
             return legacy
+        candidates = sorted(CACHE_DIR.glob(f"{stem}_*.json"))
+        if candidates:
+            return candidates[0]
     return path
 
 
